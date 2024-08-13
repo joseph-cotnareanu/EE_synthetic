@@ -23,17 +23,17 @@ class model(torch.nn.Module):
         self.y2_in = torch.nn.Linear(feat_dim*2, 2*self.hidden_dim)
         self.y2_out = torch.nn.Linear(2*self.hidden_dim, out_dim)
         self.s_in = torch.nn.Linear(feat_dim*2, 2*self.hidden_dim)
-        self.s_in = torch.nn.Linear(feat_dim*2, 2*self.hidden_dim)
-        self.s_out = torch.nn.Linear(2*self.hidden_dim, 2)
+        self.s_in = torch.nn.Linear(feat_dim, self.hidden_dim)
+        self.s_out = torch.nn.Linear(self.hidden_dim, 2)
         self.Softmax = torch.nn.Softmax()
 
     def forward(self, x,z):
         y1_in = self.act(self.y1_in(x))
-        y1_out = self.Softmax(self.act(self.y1_out(y1_in)))
+        y1_out = self.Softmax((self.y1_out(y1_in)))
         y2_in = self.act(self.y2_in(torch.concatenate((x,z), dim=1)))
-        y2_out = self.Softmax(self.act(self.y2_out(y2_in)))
-        s_in = self.act(self.s_in(torch.concatenate((x,z),dim=1)))
-        s_out = self.Softmax(self.act(self.s_out(s_in)))
+        y2_out = self.Softmax((self.y2_out(y2_in)))
+        s_in = self.act(self.s_in(x))
+        s_out = self.Softmax((self.s_out(s_in)))
 
         # if s.argmax() == 1:
         #     return y2_out
@@ -230,7 +230,7 @@ def exp(d=32*20, cost=0.01):
     y1 = mlp(feat_dim=1, out_dim=3, hidden_dim=100)
     y2 = mlp(feat_dim=2, out_dim=2, hidden_dim=200)
 
-    jm = model(feat_dim=1, out_dim=2, hidden_dim=10)
+    jm = model(feat_dim=1, out_dim=2, hidden_dim=100)
     # s = mlp(feat_dim=3, hidden_dim=200)
 
 
