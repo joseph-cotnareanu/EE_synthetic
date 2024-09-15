@@ -10,7 +10,20 @@ import numpy as np
 
 
 
-
+class linear(torch.nn.Module):
+    def __init__(self, feat_dim=1, out_dim=2, hidden_dim=1000):
+        super(linear, self).__init__()
+        self.hidden_dim=hidden_dim
+        self.y1 = torch.nn.Linear(feat_dim, out_dim + 1)
+        self.y2 = torch.nn.Linear(feat_dim*2, out_dim)
+        self.Softmax = torch.nn.Softmax()
+    def forward(self, x,z):
+        y1 = self.Softmax(self.y1(x))
+        y2 = self.Softmax(self.y2(torch.concatenate((x,z), dim=1)))
+        s = y1[:,-1].reshape((len(y1), 1))
+        y1 = y1[:, :-1]
+        # print(y1.shape)
+        return y1, y2, s
 
 class model(torch.nn.Module):
 
@@ -65,6 +78,7 @@ def loss_fn(x,z,y,cost,y1,y2, K=2, joint=True):
     ##  termy: items which depend on the value of y
     ##  termr: items which depend on p_r
     ##  termsum: the sum item
+    # print(y)
     if joint:
         p1, p2, s = y1(x,z)
         # termy = torch.zeros((len(p1)))
@@ -85,8 +99,8 @@ def loss_fn(x,z,y,cost,y1,y2, K=2, joint=True):
             termsum += torch.log(p1[:, k])
 
         termsum *= -cost
-        print(torch.sum(termr), torch.sum(termsum), torch.sum(termy))
-        return torch.sum(termr + termsum + termy)
+        # print(torch.sum(termr), torch.sum(termsum), torch.sum(termy))
+        return torch.sum(5*termr + termsum + 100*termy)
         # return torch.sum(termr+termy)
         # return torch.sum(termy)
         # breakpoint()
@@ -180,7 +194,7 @@ def eval(x,z,y,cost,y1,y2, joint=True, debug=False):
         assert len(p1) == len(p2)
     if debug:
         breakpoint()
-    return {'acc y1': num_y1/len(p1), 'acc y2': num_y2/len(p2), 'good reject': num_good_rs/len(p1), 'bad reject': num_bad_rs/len(p1), 'good non-reject': num_good_nors/len(p1), 'bad non-reject': num_bad_nors/len(p1)}
+    return {'acc y1': num_y1/len(p1), 'acc y2': num_y2/len(p2), 'good reject': num_good_rs/len(p1), 'bad reject': num_bad_rs/len(p1), 'good non-reject': num_good_nors/len(p1), 'bad non-reject': num_bad_nors/len(p1)}, {'p1': p1, 'p2': p2, 's': s[:, -1], 'x': x, 'y': y, 'z':z}
 # model = model()
 
 def exp(d=32*20, cost=0.01):
@@ -198,39 +212,67 @@ def exp(d=32*20, cost=0.01):
     x = torch.normal(mean=torch.zeros((d,1)), std=torch.ones((d,1)))
     z = torch.normal(mean=torch.zeros((d,1)), std=torch.ones((d,1)))
 
-    # y = (torch.ones((d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x*z))).type(torch.LongTensor)
-    y = torch.ones((d, 2))
-    for i in range(len(x)):
-        y[int(torch.bernoulli(torch.nn.Sigmoid()(x[i]*z[i])))] = 1
-        y[int(1-torch.bernoulli(torch.nn.Sigmoid()(x[i]*z[i])))] = 0
+    y = (torch.ones((d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x*z))).type(torch.LongTensor)
+    new_y = torch.zeros((d, 2))
+    for i in range(len(y)):
+        if y[i] == 0:
+            new_y[i] = torch.tensor([1,0])
+        elif y[i] == 1:
+            new_y[i] = torch.tensor([0,1])
+
+    y = new_y
+
+    # y = torch.ones((d, 2))
+    # for i in range(len(x)):
+    #     y[int(torch.bernoulli(torch.nn.Sigmoid()(x[i]+z[i])))] = 1
+    #     y[int(1-torch.bernoulli(torch.nn.Sigmoid()(x[i]+z[i])))] = 0
     # y = torch.ones((d, 1))
 
     x_val = torch.normal(mean=torch.zeros((d,1)), std=torch.ones((d,1)))
     z_val = torch.normal(mean=torch.zeros((d,1)), std=torch.ones((d,1)))
 
-    # y_val = torch.ones((d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x*z))
-    # y_val = torch.ones((d, 1))
+    y_val = torch.ones((d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x*z))
+    y_val = torch.ones((d, 1))
+    new_y = torch.zeros((d, 2))
+    for i in range(len(y_val)):
+        if y_val[i] == 0:
+            new_y[i] = torch.tensor([1,0])
+        elif y_val[i] == 1:
+            new_y[i] = torch.tensor([0,1])
 
-    y_val = torch.ones((d, 2))
-    for i in range(len(x)):
-        y_val[int(torch.bernoulli(torch.nn.Sigmoid()(x_val[i]*z_val[i])))] = 1
-        y_val[int(1-torch.bernoulli(torch.nn.Sigmoid()(x_val[i]*z_val[i])))] = 0
+    y_val = new_y
+    # y_val = torch.ones((d, 2))
+    # for i in range(len(x)):
+    #     y_val[int(torch.bernoulli(torch.nn.Sigmoid()(x_val[i]+z_val[i])))] = 1
+    #     y_val[int(1-torch.bernoulli(torch.nn.Sigmoid()(x_val[i]+z_val[i])))] = 0
 
     x_test = torch.normal(mean=torch.zeros((d*100,1)), std=torch.ones((d*100,1)))
     z_test = torch.normal(mean=torch.zeros((d*100,1)), std=torch.ones((d*100,1)))
 
-    # y_test = torch.ones((d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x*z))
+    y_test = torch.ones((d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x*z))
+
+    new_y = torch.zeros((d, 2))
+    for i in range(len(y_test)):
+        if y_test[i] == 0:
+            new_y[i] = torch.tensor([1,0])
+        elif y_test[i] == 1:
+            new_y[i] = torch.tensor([0,1])
+
+    y_test = new_y
+
+
+
     # y_test = torch.ones((d, 1))
-    y_test = torch.ones((d, 2))
-    for i in range(len(x)):
-        y_test[int(torch.bernoulli(torch.nn.Sigmoid()(x_test[i]*z_test[i])).item())] = 1
-        y_test[int(1-torch.bernoulli(torch.nn.Sigmoid()(x_test[i]*z_test[i])).item())] = 0
+    # y_test = torch.ones((d, 2))
+    # for i in range(len(x)):
+    #     y_test[int(torch.bernoulli(torch.nn.Sigmoid()(x_test[i]+z_test[i])).item())] = 1
+    #     y_test[int(1-torch.bernoulli(torch.nn.Sigmoid()(x_test[i]+z_test[i])).item())] = 0
 
 
     y1 = mlp(feat_dim=1, out_dim=3, hidden_dim=100)
     y2 = mlp(feat_dim=2, out_dim=2, hidden_dim=200)
 
-    jm = model(feat_dim=1, out_dim=2, hidden_dim=100)
+    jm = linear(feat_dim=1, out_dim=2, hidden_dim=100)
     # s = mlp(feat_dim=3, hidden_dim=200)
 
 
@@ -242,8 +284,9 @@ def exp(d=32*20, cost=0.01):
     # breakpoint()
     # start_params = list(y1.parameters().clone()) + list(y2.parameters().clone())
     running_loss = 0
+    from tqdm import tqdm
     for i in range(epoch):
-        for batch in range(batch_size, d+batch_size, batch_size):
+        for batch in tqdm(range(batch_size, d+batch_size, batch_size)):
 
             x_batch = x[batch-batch_size:batch]
             z_batch = z[batch-batch_size:batch]
@@ -261,15 +304,22 @@ def exp(d=32*20, cost=0.01):
             optimizer.step()
 
             running_loss += loss.item()
-            if batch % 10 == 0:
+            if batch % 100 == 0:
                 # last_loss = running_loss / 320 # loss per batch
-                print('  batch {} loss: {}'.format(batch/batch_size, loss))
+                # print('  batch {} loss: {}'.format(batch/batch_size, loss))
               
-                valid = eval(x_val[batch-batch_size:batch], z_val[batch-batch_size:batch], y_val[batch-batch_size:batch], cost, jm,None)
-                print(valid)
+                valid, ___ = eval(x_val[batch-batch_size:batch], z_val[batch-batch_size:batch], y_val[batch-batch_size:batch], cost, jm,None)
+                # print(valid)
             scheduler.step()
 
     result = {}
+    # preds = torch.zeros((0, 6))
+    p1s = []
+    p2s = []
+    ss = []
+    xs = []
+    ys = []
+    zs = []
     for key in valid.keys():
         result[key] = []
     for batch in range(batch_size, d+batch_size, batch_size):
@@ -279,7 +329,14 @@ def exp(d=32*20, cost=0.01):
         y_batch = y_test[batch-batch_size:batch]
 
 
-        out = eval(x_batch, z_batch, y_batch, cost, jm, None, debug=True)
+        out, pred = eval(x_batch, z_batch, y_batch, cost, jm, None, debug=True)
+        # preds = torch.concatenate((preds, pred))
+        p1s += list(pred['p1'])
+        p2s += list(pred['p2'])
+        ss += list(pred['s'])
+        xs += list(pred['x'])
+        ys += list(pred['y'])
+        zs += list(pred['z'])
         for key, value in out.items():
             result[key].append(value)
 
@@ -290,9 +347,11 @@ def exp(d=32*20, cost=0.01):
         sdd_result[key] = np.std(value)
     # print(start_params==list(y1.parameters()) + list(y2.parameters()))
     # breakpoint()
-    return mean_result, sdd_result
+    return mean_result, sdd_result, {'p1': p1s, 'p2': p2s, 's': ss, 'x': xs, 'y': ys, 'z': zs}
 
-costs = [0.001, 0.002, 0.005, 0.1, 0.2, 0.5, 1, 2, 5, 10]
+# costs = [0.001, 0.002, 0.005, 0.1, 0.2, 0.5, 1, 2, 5, 10]
+# costs = [0.01, 0.1, 1, 10, 1000]
+costs = [0, 0.1, 1, 10]
 # costs = list(np.arange(0, 1, 0.2))
 # costs = np.arange()
 # costs = [10000000]
@@ -300,7 +359,7 @@ costs = [0.001, 0.002, 0.005, 0.1, 0.2, 0.5, 1, 2, 5, 10]
 # costs = [0.00001, 0.00002, 0.00005, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005]
 # costs = [0, 0, 0,0,0]
 # costs = [10000, 10000, 10000,10000]
-costs = np.arange(0, 1, 0.01)
+# costs = np.arange(0, 1, 0.01)
 num_accept = []
 num_reject = []
 accept_acc = []
@@ -310,7 +369,7 @@ y2_acc = []
 l_sdd = []
 
 for cost in costs:
-    result, sdd = exp(d=32*1000,cost=cost)
+    result, sdd, preds = exp(d=32*1000,cost=cost)
     l_sdd.append(sdd)
     for key, value in result.items():
         try:
@@ -323,36 +382,57 @@ for cost in costs:
     reject_acc.append(str(result['good reject']) + '/' + str(result['bad reject']))
     y1_acc.append(result['acc y1'])
     y2_acc.append(result['acc y2'])
+    colors = []
+    for p in preds['s']:
+        if p <= 0.5:
+            colors.append('r')
+        else:
+            colors.append('g')
+    fig1, ax1 = plt.subplots()
+    ax1.scatter(torch.stack(preds['x']), torch.stack(preds['z']), color = colors, s=3)
+    ax1.set_title('Cost = ' + str(cost))
+    ax1.set_xlabel('X')
+    ax1.set_ylabel('Z')
+    import matplotlib.patches as mpatches
+    red_patch = mpatches.Patch(color='r', label='s < 0.5')
+    plt.legend(handles=[red_patch])
+    green_patch = mpatches.Patch(color='g', label='s > 0.5')
+    ax1.legend(handles=[red_patch, green_patch])
+    fig1.savefig('./' + str(cost)+'.png')
+    # ax1.legend()
 
-fig1, ax1 = plt.subplots()
 
-ax1.plot(costs, y2_acc)
-ax1.set_ylim(0, 1)
-ax1.set_title("Y2 Accuracy (% of all predictions) vs. Cost")
+# fig1, ax1 = plt.subplots()
 
-fig1, ax1 = plt.subplots()
+# ax1.plot(costs, y2_acc)
+# ax1.set_ylim(0, 1)
+# ax1.set_title("Y2 Accuracy (% of all predictions) vs. Cost")
 
-ax1.plot(costs, y1_acc)
-ax1.set_ylim(0, 1)
-ax1.set_title("Y1 Accuracy (% of all predictions) vs. Cost")
+# fig1, ax1 = plt.subplots()
 
-fig1, ax1 = plt.subplots()
+# ax1.plot(costs, y1_acc)
+# ax1.set_ylim(0, 1)
+# ax1.set_title("Y1 Accuracy (% of all predictions) vs. Cost")
 
-ax1.plot(costs, num_accept)
-ax1.set_title("Number of Y1-Accepts (% of all predictions) vs Cost")
-ax1.set_ylim(0, 1)
-# for i in range(len(accept_acc)):
-#     # if i != 0 and np.abs(num_accept[i-1]-num_accept[i]) < 0.1:
-#     #     plt.text(costs[i]+0.05, num_accept[i]+0.05, accept_acc[i])
-#     # else:
-#     #     plt.text(costs[i], num_accept[i], accept_acc[i])
-#     plt.text(costs[i], num_accept[i], accept_acc[i])
-# plt.text(6, 0.7, "Note: we show at each point \n [Correct Accepts]/[Incorrect Accepts] \n based on whether Y1 was correct")
+# fig1, ax1 = plt.subplots()
 
-fig1, ax1 = plt.subplots()
-ax1.plot(costs, num_reject)
-ax1.set_title("Number of Y1-Rejects (% of all predictions) vs Cost ")
-ax1.set_ylim(0, 1)
+# ax1.plot(costs, num_accept)
+# ax1.set_title("Number of Y1-Accepts (% of all predictions) vs Cost")
+# ax1.set_ylim(0, 1)
+# # for i in range(len(accept_acc)):
+# #     # if i != 0 and np.abs(num_accept[i-1]-num_accept[i]) < 0.1:
+# #     #     plt.text(costs[i]+0.05, num_accept[i]+0.05, accept_acc[i])
+# #     # else:
+# #     #     plt.text(costs[i], num_accept[i], accept_acc[i])
+# #     plt.text(costs[i], num_accept[i], accept_acc[i])
+# # plt.text(6, 0.7, "Note: we show at each point \n [Correct Accepts]/[Incorrect Accepts] \n based on whether Y1 was correct")
+
+# fig1, ax1 = plt.subplots()
+# ax1.plot(costs, num_reject)
+# ax1.set_title("Number of Y1-Rejects (% of all predictions) vs Cost ")
+# ax1.set_ylim(0, 1)
+
+
 # for i in range(len(reject_acc)):
 #     # if i != 0 and np.abs(num_reject[i-1]-num_reject[i]) < 0.1:
 #     #     plt.text(costs[i]+0.05, num_reject[i]+0.05, reject_acc[i])
