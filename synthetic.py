@@ -8,13 +8,36 @@ import numpy as np
 # y2 = MLP()
 # s = MLP()
 
+class EarlyStopper:
+    def __init__(self, patience=1, min_delta=0):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.min_validation_loss = float('inf')
+
+    def early_stop(self, validation_loss):
+        if validation_loss < self.min_validation_loss:
+            self.min_validation_loss = validation_loss
+            self.counter = 0
+        elif validation_loss > (self.min_validation_loss + self.min_delta):
+            self.counter += 1
+            if self.counter >= self.patience:
+                return True
+        return False
+
+
+
 
 
 class linear(torch.nn.Module):
     def __init__(self, feat_dim=1, out_dim=2, hidden_dim=100):
         super(linear, self).__init__()
         self.hidden_dim=hidden_dim
-        self.y1 = torch.nn.Linear(feat_dim, out_dim + 1)
+        self.y1 = torch.nn.Linear(feat_dim, out_dim)
+
+        self.y2 = torch.nn.Linear(feat_dim, out_dim)
+
+        self.s = torch.nn.Linear(feat_dim, out_dim)
 
         # self.y1_in = torch.nn.Linear(feat_dim, hidden_dim)
         # self.y1_out = torch.nn.Linear(hidden_dim, out_dim+1)
@@ -29,23 +52,25 @@ class linear(torch.nn.Module):
         self.relu = torch.nn.ReLU()
 
         self.s_in = torch.nn.Linear(feat_dim, hidden_dim)
-        self.s_out = torch.nn.Linear(hidden_dim, 1)
+        self.s_out = torch.nn.Linear(hidden_dim, out_dim)
 
-        self.y2 = torch.nn.Linear(feat_dim*2, out_dim)
-        self.y2 = torch.nn.Linear(feat_dim, out_dim)
+        
 
         self.Softmax = torch.nn.Softmax()
     def forward(self, x,z):
-        # y1 = self.Softmax(self.y1(x))
-        # # y2 = self.Softmax(self.y2(torch.concatenate((x,z), dim=1)))
-        # y2 = self.Softmax(self.y2(x+z))
+        
 
         y1 = self.Softmax(self.y1_out(self.relu(self.y1_in(x))))
         y2 = self.Softmax(self.y2_out(self.relu(self.y2_in(x+z))))
+        s = self.Softmax(self.s_out(self.relu(self.s_in(x))))
+
+        # y1 = self.Softmax(self.y1(x))
+        # y2 = self.Softmax(self.y2(x+z))
+        # s = self.Softmax(self.s(x))
 
         # s = y1[:,-1].reshape((len(y1), 1))
         # y1 = y1[:, :-1]
-        s = self.relu(self.s_out(self.relu(self.s_in(x))))
+        
         # print(y1.shape)
         return y1, y2, s
 
@@ -321,13 +346,17 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
 
     epoch=1
     batch_size=32
-    optimizer = torch.optim.Adam(jm.parameters(), lr=0.0001)
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+    optimizer = torch.optim.Adam(jm.parameters(), lr=0.1)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
     # breakpoint()
     # start_params = list(y1.parameters().clone()) + list(y2.parameters().clone())
     running_loss = 0
     from tqdm import tqdm
+    last_3_valid = torch.zeros(3)
+    early_stopper = EarlyStopper(patience=50, min_delta=5)
+
+    
     for i in range(epoch):
         for batch in tqdm(range(batch_size, train_d+batch_size, batch_size)):
 
@@ -348,13 +377,21 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
             optimizer.step()
 
             running_loss += loss.item()
-            if batch % 50 == 0:
+            if batch % batch_size*10 == 0:
                 # last_loss = running_loss / 320 # loss per batch
                 # print('  batch {} loss: {}'.format(batch/batch_size, loss))
               
                 valid, ___ = eval(x_val[batch-batch_size:batch], z_val[batch-batch_size:batch], y_val[batch-batch_size:batch], cost, jm,None)
                 # print(valid)
-            # scheduler.step()
+                x_batch = x_val[batch-batch_size:batch]
+                z_batch = z_val[batch-batch_size:batch]
+                y_batch = y_val[batch-batch_size:batch]
+                valid_loss = loss = loss_fn(x_batch, z_batch, y_batch, cost, jm, None, CE=False)
+                if early_stopper.early_stop(valid_loss):             
+                    print('early stopping')
+                    break
+
+                scheduler.step()
     valid, ___ = eval(x_val[batch-batch_size:batch], z_val[batch-batch_size:batch], y_val[batch-batch_size:batch], cost, jm,None)
 
     result = {}
@@ -406,7 +443,8 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
 # costs = [0, 0, 0,0,0]
 # costs = [10000, 10000, 10000,10000]
 # costs = np.arange(0, 0.1, 0.01)
-costs = [0, 0.05, 0.1, 1, 1000]
+# costs = [0, 0.05, 0.1, 1, 1000]
+costs = [0, 0.001, 0.002, 1]
 # costs = np.arange(0, 1, 0.2)
 num_accept = []
 num_reject = []
@@ -492,13 +530,13 @@ ax1.set_title("Number of Y1-Rejects (% of all predictions) vs Cost ")
 ax1.set_ylim(0, 1)
 
 
-for i in range(len(reject_acc)):
-    # if i != 0 and np.abs(num_reject[i-1]-num_reject[i]) < 0.1:
-    #     plt.text(costs[i]+0.05, num_reject[i]+0.05, reject_acc[i])
-    # else:
-    #     plt.text(costs[i], num_reject[i], reject_acc[i])
-    plt.text(costs[i], num_reject[i], reject_acc[i])
-plt.text(6, 0.7, "Note: we show at each point \n [Correct Rejects]/[Incorrect rejects] \n based on whether Y1 was correct")
+# for i in range(len(reject_acc)):
+#     # if i != 0 and np.abs(num_reject[i-1]-num_reject[i]) < 0.1:
+#     #     plt.text(costs[i]+0.05, num_reject[i]+0.05, reject_acc[i])
+#     # else:
+#     #     plt.text(costs[i], num_reject[i], reject_acc[i])
+#     plt.text(costs[i], num_reject[i], reject_acc[i])
+# plt.text(6, 0.7, "Note: we show at each point \n [Correct Rejects]/[Incorrect rejects] \n based on whether Y1 was correct")
 # d = 1000
 # x = torch.normal(mean=torch.zeros((d,1)), std=torch.ones((d,1)))
 # z = torch.normal(mean=torch.zeros((d,1)), std=torch.ones((d,1)))
