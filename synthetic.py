@@ -27,6 +27,32 @@ class EarlyStopper:
 
 
 
+class simple(torch.nn.Module):
+    def __init__(self, ):
+        super(simple, self).__init__()
+        self.params = []
+        for i in range(5):
+            self.params.append(torch.zeros((1,1), dtype=float, requires_grad=True))
+
+        self.params.append(torch.zeros((1), dtype=float, requires_grad=True))
+        self.params.append(torch.zeros((1), dtype=float, requires_grad=True))
+
+        self.sigmoid = torch.nn.Sigmoid()
+        # self.softmax = torch.nn.Softmax()
+    def parameters(self):
+        for param in self.params:
+            yield param
+        # return self.params
+    def forward(self, x,z):
+        y1 = (self.sigmoid(x*self.params[0] + self.params[1]))
+        y2 = (self.sigmoid(x*self.params[2] + z*self.params[3] + self.params[4]))
+        s = self.sigmoid(x-self.params[5])*self.sigmoid(self.params[6]-x)
+        y1 = torch.cat((1-y1, y1), dim=1)
+        y2 = torch.cat((1-y2, y2), dim=1)
+        s = torch.cat((1-s, s), dim=1)
+        # print(s)
+        # print(y1.shape, y2.shape, s.shape)
+        return y1, y2, s
 
 
 class linear(torch.nn.Module):
@@ -54,7 +80,7 @@ class linear(torch.nn.Module):
         self.s_in = torch.nn.Linear(feat_dim, hidden_dim)
         self.s_out = torch.nn.Linear(hidden_dim, out_dim)
 
-        
+        self.parameters()
 
         self.Softmax = torch.nn.Softmax()
     def forward(self, x,z):
@@ -62,6 +88,7 @@ class linear(torch.nn.Module):
 
         y1 = self.Softmax(self.y1_out(self.relu(self.y1_in(x))))
         y2 = self.Softmax(self.y2_out(self.relu(self.y2_in(x+z))))
+        # y2 = self.Softmax(self.y2_out(self.relu(self.y2_in(torch.cat((x,z), dim=1)))))
         s = self.Softmax(self.s_out(self.relu(self.s_in(x))))
 
         # y1 = self.Softmax(self.y1(x))
@@ -72,7 +99,8 @@ class linear(torch.nn.Module):
         # y1 = y1[:, :-1]
         
         # print(y1.shape)
-        return y1, y2, s
+        # return y1, y2, s
+        return torch.zeros((32,2)), y2, torch.zeros((32,2))
 
 class model(torch.nn.Module):
 
@@ -116,6 +144,16 @@ class mlp(torch.nn.Module):
         y1_out = self.Softmax(self.act(self.y1_out(y1_in)))
         return y1_out
 
+def risk(y1, y2, s,y, cost):
+    # out = torch.ones(len(y1))*3
+    risk = 0
+    for i in range(len(y1)):
+        if s[i]> 0.5:
+            risk += int((y2[i].argmax() != y[i].argmax()))
+        else:
+            risk += int(y1[i].argmax() != y[i].argmax()) - cost
+    return risk/len(y)
+
 def loss_fn(x,z,y,cost,y1,y2, K=2, joint=True, CE=False):
    
     # breakpoint()
@@ -130,7 +168,7 @@ def loss_fn(x,z,y,cost,y1,y2, K=2, joint=True, CE=False):
     # print(y)
     if CE:
         p1, p2, s = y1(x,z)
-        print('returning CE')
+        # print('returning CE')
         return torch.nn.CrossEntropyLoss(reduction='sum')(p2,y)
     if joint:
         p1, p2, s = y1(x,z)
@@ -152,8 +190,11 @@ def loss_fn(x,z,y,cost,y1,y2, K=2, joint=True, CE=False):
             # print(p1[int(ys[1])], p2[int(ys[1])])
 
 
+        if s.shape[1] != 0:
+            termr = -torch.log(s[:,-1]) - (1+cost*(len(p1[0])))*torch.log(1-s[:,-1])
+        else:
+            termr = -torch.log(s) - (1+cost*(len(p1[0])))*torch.log(1-s)
 
-        termr = -torch.log(s[:,-1]) - (1+cost*(len(p1[0])))*torch.log(1-s[:,-1])
         termr = torch.sum(termr)
         termsum = torch.zeros(len(p1))
 
@@ -200,6 +241,7 @@ def eval(x,z,y,cost,y1,y2, joint=True, debug=False):
     
     if joint:
         p1, p2, s = y1(x,z)
+        # print(p1, p2, s)
         
     else:
         p1 = y1(x)
@@ -213,8 +255,10 @@ def eval(x,z,y,cost,y1,y2, joint=True, debug=False):
     # print(r)
     # breakpoint()
     # p1 = p1[:,:-1]
-
-    r = s[:, -1]
+    if s.shape[1] != 0:
+        r = s[:, -1]
+    else:
+        r = s
 
     # r = p1[:,-1]
     # p1 = p1[:, :-1]
@@ -259,9 +303,13 @@ def eval(x,z,y,cost,y1,y2, joint=True, debug=False):
                 else:
                     num_bad_nors += 1
         assert len(p1) == len(p2)
-    if debug:
-        breakpoint()
-    return {'acc y1': num_y1/len(p1), 'acc y2': num_y2/len(p2), 'good reject': num_good_rs/len(p1), 'bad reject': num_bad_rs/len(p1), 'good non-reject': num_good_nors/len(p1), 'bad non-reject': num_bad_nors/len(p1)}, {'p1': p1, 'p2': p2, 's': s[:, -1], 'x': x, 'y': y, 'z':z}
+    # if debug:
+    #     breakpoint()
+    if s.shape[1] != 0:
+        return {'acc y1': num_y1/len(p1), 'acc y2': num_y2/len(p2), 'good reject': num_good_rs/len(p1), 'bad reject': num_bad_rs/len(p1), 'good non-reject': num_good_nors/len(p1), 'bad non-reject': num_bad_nors/len(p1)}, {'p1': p1, 'p2': p2, 's': s[:, -1], 'x': x, 'y': y, 'z':z}
+    else:
+        return {'acc y1': num_y1/len(p1), 'acc y2': num_y2/len(p2), 'good reject': num_good_rs/len(p1), 'bad reject': num_bad_rs/len(p1), 'good non-reject': num_good_nors/len(p1), 'bad non-reject': num_bad_nors/len(p1)}, {'p1': p1, 'p2': p2, 's': s, 'x': x, 'y': y, 'z':z}
+
 # model = model()
 
 def exp(train_d=32*20, test_d=32*20, cost=0.01):
@@ -276,8 +324,12 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
     # x = torch.normal(mean=torch.zeros((1, d)), std=torch.ones((1, d)))
     # z = torch.normal(mean=torch.zeros((1, d)), std=torch.ones((1, d)))
 
-    x = torch.normal(mean=torch.zeros((train_d,1)), std=torch.ones((train_d,1)))
-    z = torch.normal(mean=torch.zeros((train_d,1)), std=torch.ones((train_d,1)))
+    # x = torch.normal(mean=torch.zeros((train_d,1)), std=torch.ones((train_d,1)))
+    # z = torch.normal(mean=torch.zeros((train_d,1)), std=torch.ones((train_d,1)))
+    r1, r2 = -1,1
+    # (r1 - r2) * torch.rand((train_d,1)) + r2
+    x = (r1 - r2) * torch.rand((train_d,1)) + r2
+    z = (r1 - r2) * torch.rand((train_d,1)) + r2
 
     y = (torch.ones((train_d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x+z))).type(torch.LongTensor)
     new_y = torch.zeros((train_d, 2))
@@ -295,8 +347,11 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
     #     y[int(1-torch.bernoulli(torch.nn.Sigmoid()(x[i]+z[i])))] = 0
     # y = torch.ones((d, 1))
 
-    x_val = torch.normal(mean=torch.zeros((train_d,1)), std=torch.ones((train_d,1)))
-    z_val = torch.normal(mean=torch.zeros((train_d,1)), std=torch.ones((train_d,1)))
+    # x_val = torch.normal(mean=torch.zeros((train_d,1)), std=torch.ones((train_d,1)))
+    # z_val = torch.normal(mean=torch.zeros((train_d,1)), std=torch.ones((train_d,1)))
+    
+    x_val = (r1 - r2) * torch.rand((train_d,1)) + r2
+    z_val = (r1 - r2) * torch.rand((train_d,1)) + r2
 
     y_val = torch.ones((train_d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x_val+z_val))
 
@@ -313,8 +368,12 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
     #     y_val[int(torch.bernoulli(torch.nn.Sigmoid()(x_val[i]+z_val[i])))] = 1
     #     y_val[int(1-torch.bernoulli(torch.nn.Sigmoid()(x_val[i]+z_val[i])))] = 0
 
-    x_test = torch.normal(mean=torch.zeros((test_d,1)), std=torch.ones((test_d,1)))
-    z_test = torch.normal(mean=torch.zeros((test_d,1)), std=torch.ones((test_d,1)))
+    # x_test = torch.normal(mean=torch.zeros((test_d,1)), std=torch.ones((test_d,1)))
+    # z_test = torch.normal(mean=torch.zeros((test_d,1)), std=torch.ones((test_d,1)))
+
+    x_test = (r1 - r2) * torch.rand((test_d,1)) + r2
+    z_test = (r1 - r2) * torch.rand((test_d,1)) + r2
+
     # print('l. 280', len(x_test))
     y_test = torch.ones((test_d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x_test+z_test))
     # print('l. 282', len(y_test))
@@ -340,13 +399,14 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
     y1 = mlp(feat_dim=1, out_dim=3, hidden_dim=100)
     y2 = mlp(feat_dim=2, out_dim=2, hidden_dim=200)
 
-    jm = linear(feat_dim=1, out_dim=2, hidden_dim=100)
+    # jm = linear(feat_dim=1, out_dim=2, hidden_dim=100)
+    jm = simple()
     # s = mlp(feat_dim=3, hidden_dim=200)
 
 
     epoch=1
     batch_size=32
-    optimizer = torch.optim.Adam(jm.parameters(), lr=0.1)
+    optimizer = torch.optim.Adam(jm.parameters(), lr=0.01)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
     # breakpoint()
@@ -354,7 +414,7 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
     running_loss = 0
     from tqdm import tqdm
     last_3_valid = torch.zeros(3)
-    early_stopper = EarlyStopper(patience=50, min_delta=5)
+    early_stopper = EarlyStopper(patience=15, min_delta=5)
 
     
     for i in range(epoch):
@@ -377,7 +437,7 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
             optimizer.step()
 
             running_loss += loss.item()
-            if batch % batch_size*10 == 0:
+            if batch % (batch_size*10) == 0:
                 # last_loss = running_loss / 320 # loss per batch
                 # print('  batch {} loss: {}'.format(batch/batch_size, loss))
               
@@ -390,6 +450,7 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
                 if early_stopper.early_stop(valid_loss):             
                     print('early stopping')
                     break
+            if batch % (batch_size*100) == 0:
 
                 scheduler.step()
     valid, ___ = eval(x_val[batch-batch_size:batch], z_val[batch-batch_size:batch], y_val[batch-batch_size:batch], cost, jm,None)
@@ -429,6 +490,8 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
         sdd_result[key] = np.std(value)
     # print(start_params==list(y1.parameters()) + list(y2.parameters()))
     # breakpoint()
+    # for param in jm.parameters():
+    #     print(param)
     return mean_result, sdd_result, {'p1': p1s, 'p2': p2s, 's': ss, 'x': xs, 'y': ys, 'z': zs}
 
 # costs = [0.001, 0.002, 0.005, 0.1, 0.2, 0.5, 1, 2, 5, 10]
@@ -444,8 +507,11 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
 # costs = [10000, 10000, 10000,10000]
 # costs = np.arange(0, 0.1, 0.01)
 # costs = [0, 0.05, 0.1, 1, 1000]
-costs = [0, 0.001, 0.002, 1]
-# costs = np.arange(0, 1, 0.2)
+# costs = [0, 0.002, 0.004, 0.006, 0.008, 0.01,0.05, 0.1]
+# costs = 
+# costs = [0, 0.1, 0.5, 1]
+# costs = [0, 0.1, 0.5, 1]
+costs = np.arange(0, 1, 0.01)
 num_accept = []
 num_reject = []
 accept_acc = []
@@ -453,7 +519,9 @@ reject_acc = []
 y1_acc = []
 y2_acc = []
 l_sdd = []
-
+risks = []
+pick_1 = []
+pick_2 = []
 for cost in costs:
     result, sdd, preds = exp(train_d = 32*10000, test_d = 32*1000,cost=cost)
     l_sdd.append(sdd)
@@ -486,6 +554,9 @@ for cost in costs:
     green_patch = mpatches.Patch(color='g', label='s > 0.5')
     ax1.legend(handles=[red_patch, green_patch])
     fig1.savefig('./' + str(cost)+'.png')
+    risks.append(risk(preds['p1'], preds['p2'], preds['s'], preds['y'], cost))
+    pick_1.append(torch.mean(torch.where(torch.stack(preds['p1']).argmax(dim=1) == torch.stack(preds['y']).argmax(dim=1), 1-cost, 0), dtype=float))
+    pick_2.append(torch.mean(torch.where(torch.stack(preds['p2']).argmax(dim=1) == torch.stack(preds['y']).argmax(dim=1), 1, 0), dtype=float))
     # ax1.legend()
 
 # colors = []
@@ -529,7 +600,15 @@ ax1.plot(costs, num_reject)
 ax1.set_title("Number of Y1-Rejects (% of all predictions) vs Cost ")
 ax1.set_ylim(0, 1)
 
-
+fig1, ax1 = plt.subplots()
+ax1.plot(costs, risks, label='Ours')
+ax1.plot(costs, pick_1, label='Aways Pick f1')
+ax1.plot(costs, pick_2, label='Alwyays Pick f2')
+ax1.legend()
+ax1.set_title("Risk Loss vs Cost")
+ax1.set_ylabel("Risk")
+ax1.set_xlabel("Cost")
+# ax1.set_ylim(0,1)
 # for i in range(len(reject_acc)):
 #     # if i != 0 and np.abs(num_reject[i-1]-num_reject[i]) < 0.1:
 #     #     plt.text(costs[i]+0.05, num_reject[i]+0.05, reject_acc[i])
