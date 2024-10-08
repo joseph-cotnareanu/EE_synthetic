@@ -4,10 +4,45 @@ import sklearn
 from sklearn.neural_network import MLPClassifier as MLP
 import numpy as np
 
+import numpy as np
+from scipy.special import expit 
+import matplotlib.pyplot as plt
+
 # y1 = MLP()
 # y2 = MLP()
 # s = MLP()
+def sigmoid(x):
+    return torch.nn.Sigmoid()(x)
+def posterior_p_y_given_x(x, n_samples=32*10000):
+    # Sample z from U[-1,1]
+    z_samples = np.random.uniform(-1, 1, n_samples)
+    
+    # Compute sigmoid(x + z) for each z
+    prob_y_given_xz = sigmoid(x + z_samples)
+    
+    # Compute p(y=1 | x)
+    p_y1_x = torch.mean(prob_y_given_xz)
+    
+    # Return max(p(y=1 | x), p(y=0 | x))
+    # return max(p_y1_x, 1 - p_y1_x)
+    return p_y1_x
 
+# Monte Carlo approximation of expected max_y p(y | x, z)
+def expected_max_p_y_given_xz(x, n_samples=32*10000):
+    # Sample z from U[-1,1]
+    z_samples = np.random.uniform(-1, 1, n_samples)
+    
+    # Compute sigmoid(x + z) for each z
+    prob_y_given_xz = sigmoid(x + z_samples)
+    
+    # Compute max(p(y=1 | x, z), p(y=0 | x, z)) for each z
+    max_prob_y_given_xz = np.maximum(prob_y_given_xz, 1 - prob_y_given_xz)
+    
+    # Return the expected value of max_y p(y | x, z)
+    return torch.mean(max_prob_y_given_xz)
+def posterior_p_y_given_x_z(x, z):
+    # Return and p_y1_x_z
+    return sigmoid(x + z)
 class EarlyStopper:
     def __init__(self, patience=1, min_delta=0):
         self.patience = patience
@@ -149,9 +184,11 @@ def risk(y1, y2, s,y, cost):
     risk = 0
     for i in range(len(y1)):
         if s[i]> 0.5:
-            risk += int((y2[i].argmax() != y[i].argmax()))
+            if int((y2[i].argmax() != y[i].argmax())):
+                risk += 1
         else:
-            risk += int(y1[i].argmax() != y[i].argmax()) - cost
+            if int(y1[i].argmax() != y[i].argmax()):
+                risk += 1 - cost
     return risk/len(y)
 
 def loss_fn(x,z,y,cost,y1,y2, K=2, joint=True, CE=False):
@@ -507,11 +544,14 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
 # costs = [10000, 10000, 10000,10000]
 # costs = np.arange(0, 0.1, 0.01)
 # costs = [0, 0.05, 0.1, 1, 1000]
-# costs = [0, 0.002, 0.004, 0.006, 0.008, 0.01,0.05, 0.1]
+costs = [0, 0.002, 0.004, 0.006, 0.008, 0.01,0.05, 0.1]
 # costs = 
 # costs = [0, 0.1, 0.5, 1]
 # costs = [0, 0.1, 0.5, 1]
-costs = np.arange(0, 1, 0.01)
+# costs = np.arange(0, 1, 0.01)
+# costs = [0, 0.002, 0.01, 1]
+# costs = [0.002]
+
 num_accept = []
 num_reject = []
 accept_acc = []
@@ -522,6 +562,9 @@ l_sdd = []
 risks = []
 pick_1 = []
 pick_2 = []
+t_risks = []
+t_x_acc = []
+t_xz_acc = []
 for cost in costs:
     result, sdd, preds = exp(train_d = 32*10000, test_d = 32*1000,cost=cost)
     l_sdd.append(sdd)
@@ -553,12 +596,53 @@ for cost in costs:
     plt.legend(handles=[red_patch])
     green_patch = mpatches.Patch(color='g', label='s > 0.5')
     ax1.legend(handles=[red_patch, green_patch])
-    fig1.savefig('./' + str(cost)+'.png')
+    fig1.savefig('./' + str(cost)+'.pdf', format='pdf')
     risks.append(risk(preds['p1'], preds['p2'], preds['s'], preds['y'], cost))
     pick_1.append(torch.mean(torch.where(torch.stack(preds['p1']).argmax(dim=1) == torch.stack(preds['y']).argmax(dim=1), 1-cost, 0), dtype=float))
     pick_2.append(torch.mean(torch.where(torch.stack(preds['p2']).argmax(dim=1) == torch.stack(preds['y']).argmax(dim=1), 1, 0), dtype=float))
     # ax1.legend()
+    binary_map = np.zeros_like(torch.stack(preds['x']))
+    x_values = torch.stack(preds['x'])
+    z_values = torch.stack(preds['z'])
+    y_values = torch.stack(preds['y'])
+    t_risk = 0
+    t_x = 0
+    t_xz = 0
+    for i in range(len(x_values)):
+        x = x_values[i]
+        
+        # Compute the expected max p(y | x, z) over z
+        expected_max_prob = expected_max_p_y_given_xz(x)
+        
+        # Compute the marginalized max_y p(y | x)
+        max_prob = posterior_p_y_given_x(x)
+        
+        # Compute the difference
+        diff = expected_max_prob - max_prob
+        
+        binary_map[i] = torch.where(diff > cost, 1, 0)
+        xz_post = posterior_p_y_given_x_z(x, z_values[i])
+        if np.where(xz_post > 0.5, 1, 0) == y_values[i].argmax():
+            t_xz += 1
+        if np.where(max_prob > 0.5, 1, 0) == y_values[i].argmax():
+            t_x += 1
+    
 
+    # t_risk = 0
+    # for i in range(len(binary_map)):
+        if binary_map[i] == 1:
+            if np.where(xz_post > 0.5, 1, 0).item() != y_values[i].argmax().item():
+        #     if torch.bernoulli(sigmoid(x_values[i] + z_values[i])) != y_values[i].argmax():
+                t_risk += 1
+        elif binary_map[i] == 0:
+            if np.where(max_prob > 0.5, 1, 0).item() != y_values[i].argmax().item():
+        #     if torch.bernoulli(sigmoid(x_values[i])) != y_values[i].argmax():
+                t_risk += 1-cost
+    t_risk /= len(binary_map)
+    t_risks.append(t_risk)
+    t_xz_acc.append(t_xz/len(binary_map))
+    t_x_acc.append(t_x/len(binary_map))
+    # breakpoint()
 # colors = []
 # for p in preds['y']:
 #         if p[1] == 1:
@@ -604,10 +688,21 @@ fig1, ax1 = plt.subplots()
 ax1.plot(costs, risks, label='Ours')
 ax1.plot(costs, pick_1, label='Aways Pick f1')
 ax1.plot(costs, pick_2, label='Alwyays Pick f2')
+ax1.plot(costs, t_risks, label='Optimal Risk Decision')
 ax1.legend()
 ax1.set_title("Risk Loss vs Cost")
 ax1.set_ylabel("Risk")
 ax1.set_xlabel("Cost")
+
+fig1.savefig('/home/joseph/EE_synthetic/riscfig.pdf', format='pdf')
+
+fig1, ax1 = plt.subplots()
+ax1.plot(costs, t_x_acc, label='x acc')
+ax1.plot(costs, t_xz_acc, label='xz acc')
+ax1.legend()
+
+fig1.savefig('/home/joseph/EE_synthetic/post_acc.pdf', format='pdf')
+breakpoint()
 # ax1.set_ylim(0,1)
 # for i in range(len(reject_acc)):
 #     # if i != 0 and np.abs(num_reject[i-1]-num_reject[i]) < 0.1:
