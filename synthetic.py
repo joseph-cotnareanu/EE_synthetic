@@ -1,48 +1,42 @@
+import torch
+import numpy as np
+import random
+
+seed = 42  # or any number you choose
+
+# Python random seed
+random.seed(seed)
+
+# NumPy random seed
+np.random.seed(seed)
+
+# PyTorch random seed
+torch.manual_seed(seed)
+
+# If you are using CUDA
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # for multi-GPU
+
+# Ensure deterministic behavior in PyTorch (optional)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 from matplotlib import pyplot as plt
 import torch
 import sklearn
 from sklearn.neural_network import MLPClassifier as MLP
 import numpy as np
-
+from tqdm import tqdm
 import numpy as np
 from scipy.special import expit 
 import matplotlib.pyplot as plt
 
+from generate_data import create_data, expected_max_p_y_given_xz, posterior_p_y_given_x, posterior_p_y_given_x_z
+
 # y1 = MLP()
 # y2 = MLP()
 # s = MLP()
-def sigmoid(x):
-    return torch.nn.Sigmoid()(x)
-def posterior_p_y_given_x(x, n_samples=32*10000):
-    # Sample z from U[-1,1]
-    z_samples = np.random.uniform(-1, 1, n_samples)
-    
-    # Compute sigmoid(x + z) for each z
-    prob_y_given_xz = sigmoid(x + z_samples)
-    
-    # Compute p(y=1 | x)
-    p_y1_x = torch.mean(prob_y_given_xz)
-    
-    # Return max(p(y=1 | x), p(y=0 | x))
-    # return max(p_y1_x, 1 - p_y1_x)
-    return p_y1_x
 
-# Monte Carlo approximation of expected max_y p(y | x, z)
-def expected_max_p_y_given_xz(x, n_samples=32*10000):
-    # Sample z from U[-1,1]
-    z_samples = np.random.uniform(-1, 1, n_samples)
-    
-    # Compute sigmoid(x + z) for each z
-    prob_y_given_xz = sigmoid(x + z_samples)
-    
-    # Compute max(p(y=1 | x, z), p(y=0 | x, z)) for each z
-    max_prob_y_given_xz = np.maximum(prob_y_given_xz, 1 - prob_y_given_xz)
-    
-    # Return the expected value of max_y p(y | x, z)
-    return torch.mean(max_prob_y_given_xz)
-def posterior_p_y_given_x_z(x, z):
-    # Return and p_y1_x_z
-    return sigmoid(x + z)
 class EarlyStopper:
     def __init__(self, patience=1, min_delta=0):
         self.patience = patience
@@ -349,105 +343,32 @@ def eval(x,z,y,cost,y1,y2, joint=True, debug=False):
 
 # model = model()
 
-def exp(train_d=32*20, test_d=32*20, cost=0.01):
+def exp(data_dict, cost=0.01):
+    train_d = data_dict['train_d']
+    test_d = data_dict['test_d']
 
-
-    # d = 32*20
-    # cost=0.01
-    # cost = cost
-
-    c = torch.ones(train_d)*cost
-
-    # x = torch.normal(mean=torch.zeros((1, d)), std=torch.ones((1, d)))
-    # z = torch.normal(mean=torch.zeros((1, d)), std=torch.ones((1, d)))
-
-    # x = torch.normal(mean=torch.zeros((train_d,1)), std=torch.ones((train_d,1)))
-    # z = torch.normal(mean=torch.zeros((train_d,1)), std=torch.ones((train_d,1)))
-    r1, r2 = -1,1
-    # (r1 - r2) * torch.rand((train_d,1)) + r2
-    x = (r1 - r2) * torch.rand((train_d,1)) + r2
-    z = (r1 - r2) * torch.rand((train_d,1)) + r2
-
-    y = (torch.ones((train_d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x+z))).type(torch.LongTensor)
-    new_y = torch.zeros((train_d, 2))
-    for i in range(len(y)):
-        if y[i] == 0:
-            new_y[i] = torch.tensor([1,0])
-        elif y[i] == 1:
-            new_y[i] = torch.tensor([0,1])
-
-    y = new_y
-
-    # y = torch.ones((d, 2))
-    # for i in range(len(x)):
-    #     y[int(torch.bernoulli(torch.nn.Sigmoid()(x[i]+z[i])))] = 1
-    #     y[int(1-torch.bernoulli(torch.nn.Sigmoid()(x[i]+z[i])))] = 0
-    # y = torch.ones((d, 1))
-
-    # x_val = torch.normal(mean=torch.zeros((train_d,1)), std=torch.ones((train_d,1)))
-    # z_val = torch.normal(mean=torch.zeros((train_d,1)), std=torch.ones((train_d,1)))
+    x_train = data_dict['x']
+    y_train = data_dict['y']
+    z_train = data_dict['z']
     
-    x_val = (r1 - r2) * torch.rand((train_d,1)) + r2
-    z_val = (r1 - r2) * torch.rand((train_d,1)) + r2
+    x_val = data_dict['x_val']
+    y_val = data_dict['y_val']
+    z_val = data_dict['z_val']
+    
+    x_test = data_dict['x_test']
+    y_test = data_dict['y_test']
+    z_test = data_dict['z_test']
+    
 
-    y_val = torch.ones((train_d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x_val+z_val))
-
-    new_y = torch.zeros((train_d, 2))
-    for i in range(len(y_val)):
-        if y_val[i] == 0:
-            new_y[i] = torch.tensor([1,0])
-        elif y_val[i] == 1:
-            new_y[i] = torch.tensor([0,1])
-
-    y_val = new_y
-    # y_val = torch.ones((d, 2))
-    # for i in range(len(x)):
-    #     y_val[int(torch.bernoulli(torch.nn.Sigmoid()(x_val[i]+z_val[i])))] = 1
-    #     y_val[int(1-torch.bernoulli(torch.nn.Sigmoid()(x_val[i]+z_val[i])))] = 0
-
-    # x_test = torch.normal(mean=torch.zeros((test_d,1)), std=torch.ones((test_d,1)))
-    # z_test = torch.normal(mean=torch.zeros((test_d,1)), std=torch.ones((test_d,1)))
-
-    x_test = (r1 - r2) * torch.rand((test_d,1)) + r2
-    z_test = (r1 - r2) * torch.rand((test_d,1)) + r2
-
-    # print('l. 280', len(x_test))
-    y_test = torch.ones((test_d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x_test+z_test))
-    # print('l. 282', len(y_test))
-    new_y = torch.zeros((test_d, 2))
-    for i in range(len(y_test)):
-        if y_test[i] == 0:
-            new_y[i] = torch.tensor([1,0])
-        elif y_test[i] == 1:
-            new_y[i] = torch.tensor([0,1])
-
-    y_test = new_y
-    # print('l. 291', len(y_test))
-
-
-
-    # y_test = torch.ones((d, 1))
-    # y_test = torch.ones((d, 2))
-    # for i in range(len(x)):
-    #     y_test[int(torch.bernoulli(torch.nn.Sigmoid()(x_test[i]+z_test[i])).item())] = 1
-    #     y_test[int(1-torch.bernoulli(torch.nn.Sigmoid()(x_test[i]+z_test[i])).item())] = 0
-
-
-    y1 = mlp(feat_dim=1, out_dim=3, hidden_dim=100)
-    y2 = mlp(feat_dim=2, out_dim=2, hidden_dim=200)
-
-    # jm = linear(feat_dim=1, out_dim=2, hidden_dim=100)
     jm = simple()
-    # s = mlp(feat_dim=3, hidden_dim=200)
-
+  
 
     epoch=1
     batch_size=32
     optimizer = torch.optim.Adam(jm.parameters(), lr=0.01)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
-    # breakpoint()
-    # start_params = list(y1.parameters().clone()) + list(y2.parameters().clone())
+   
     running_loss = 0
     from tqdm import tqdm
     last_3_valid = torch.zeros(3)
@@ -457,9 +378,9 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
     for i in range(epoch):
         for batch in tqdm(range(batch_size, train_d+batch_size, batch_size)):
 
-            x_batch = x[batch-batch_size:batch]
-            z_batch = z[batch-batch_size:batch]
-            y_batch = y[batch-batch_size:batch]
+            x_batch = x_train[batch-batch_size:batch]
+            z_batch = z_train[batch-batch_size:batch]
+            y_batch = y_train[batch-batch_size:batch]
 
             optimizer.zero_grad()
 
@@ -531,26 +452,9 @@ def exp(train_d=32*20, test_d=32*20, cost=0.01):
     #     print(param)
     return mean_result, sdd_result, {'p1': p1s, 'p2': p2s, 's': ss, 'x': xs, 'y': ys, 'z': zs}
 
-# costs = [0.001, 0.002, 0.005, 0.1, 0.2, 0.5, 1, 2, 5, 10]
-# costs = [0.01, 0.1, 1, 10, 1000]
-# costs = [0, 0.1, 1, 10]
-# costs = [0, 0]
-# costs = list(np.arange(0, 1, 0.2))
-# costs = np.arange()
-# costs = [10000000]
-# costs = [0.0000001]
-# costs = [0.00001, 0.00002, 0.00005, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005]
-# costs = [0, 0, 0,0,0]
-# costs = [10000, 10000, 10000,10000]
-# costs = np.arange(0, 0.1, 0.01)
-# costs = [0, 0.05, 0.1, 1, 1000]
+
 costs = [0, 0.002, 0.004, 0.006, 0.008, 0.01,0.05, 0.1]
-# costs = 
-# costs = [0, 0.1, 0.5, 1]
-# costs = [0, 0.1, 0.5, 1]
-# costs = np.arange(0, 1, 0.01)
-# costs = [0, 0.002, 0.01, 1]
-# costs = [0.002]
+
 
 num_accept = []
 num_reject = []
@@ -565,8 +469,11 @@ pick_2 = []
 t_risks = []
 t_x_acc = []
 t_xz_acc = []
-for cost in costs:
-    result, sdd, preds = exp(train_d = 32*10000, test_d = 32*1000,cost=cost)
+
+
+data_dict = create_data(train_d = 32*10000, test_d = 32*1000)
+for cost in tqdm(costs):
+    result, sdd, preds = exp(data_dict, cost=cost)
     l_sdd.append(sdd)
     for key, value in result.items():
         try:
@@ -579,6 +486,7 @@ for cost in costs:
     reject_acc.append(str(result['good reject']) + '/' + str(result['bad reject']))
     y1_acc.append(result['acc y1'])
     y2_acc.append(result['acc y2'])
+    """
     colors = []
     for p in preds['s']:
         if p <= 0.5:
@@ -597,6 +505,8 @@ for cost in costs:
     green_patch = mpatches.Patch(color='g', label='s > 0.5')
     ax1.legend(handles=[red_patch, green_patch])
     fig1.savefig('./' + str(cost)+'.pdf', format='pdf')
+    """
+    
     risks.append(risk(preds['p1'], preds['p2'], preds['s'], preds['y'], cost))
     pick_1.append(torch.mean(torch.where(torch.stack(preds['p1']).argmax(dim=1) == torch.stack(preds['y']).argmax(dim=1), 1-cost, 0), dtype=float))
     pick_2.append(torch.mean(torch.where(torch.stack(preds['p2']).argmax(dim=1) == torch.stack(preds['y']).argmax(dim=1), 1, 0), dtype=float))
@@ -610,18 +520,19 @@ for cost in costs:
     t_xz = 0
     for i in range(len(x_values)):
         x = x_values[i]
-        
+      
         # Compute the expected max p(y | x, z) over z
-        expected_max_prob = expected_max_p_y_given_xz(x)
-        
+        expected_max_prob = data_dict['test_E'][i]
+        xz_post = data_dict['test_py_xz'][i] 
+        #check = posterior_p_y_given_x_z(x, z_values[i])
         # Compute the marginalized max_y p(y | x)
-        max_prob = posterior_p_y_given_x(x)
+        max_prob = data_dict['test_max'][i] #posterior_p_y_given_x(x)
         
         # Compute the difference
         diff = expected_max_prob - max_prob
         
         binary_map[i] = torch.where(diff > cost, 1, 0)
-        xz_post = posterior_p_y_given_x_z(x, z_values[i])
+        
         if np.where(xz_post > 0.5, 1, 0) == y_values[i].argmax():
             t_xz += 1
         if np.where(max_prob > 0.5, 1, 0) == y_values[i].argmax():
@@ -638,6 +549,8 @@ for cost in costs:
             if np.where(max_prob > 0.5, 1, 0).item() != y_values[i].argmax().item():
         #     if torch.bernoulli(sigmoid(x_values[i])) != y_values[i].argmax():
                 t_risk += 1-cost
+                
+                
     t_risk /= len(binary_map)
     t_risks.append(t_risk)
     t_xz_acc.append(t_xz/len(binary_map))
@@ -694,15 +607,15 @@ ax1.set_title("Risk Loss vs Cost")
 ax1.set_ylabel("Risk")
 ax1.set_xlabel("Cost")
 
-fig1.savefig('/home/joseph/EE_synthetic/riscfig.pdf', format='pdf')
+fig1.savefig('riscfig.pdf', format='pdf')
 
 fig1, ax1 = plt.subplots()
 ax1.plot(costs, t_x_acc, label='x acc')
 ax1.plot(costs, t_xz_acc, label='xz acc')
 ax1.legend()
 
-fig1.savefig('/home/joseph/EE_synthetic/post_acc.pdf', format='pdf')
-breakpoint()
+fig1.savefig('post_acc.pdf', format='pdf')
+
 # ax1.set_ylim(0,1)
 # for i in range(len(reject_acc)):
 #     # if i != 0 and np.abs(num_reject[i-1]-num_reject[i]) < 0.1:
