@@ -452,192 +452,192 @@ def exp(data_dict, cost=0.01):
     #     print(param)
     return mean_result, sdd_result, {'p1': p1s, 'p2': p2s, 's': ss, 'x': xs, 'y': ys, 'z': zs}
 
-
-costs = [0, 0.002, 0.004, 0.006, 0.008, 0.01,0.05, 0.1]
-
-
-num_accept = []
-num_reject = []
-accept_acc = []
-reject_acc = []
-y1_acc = []
-y2_acc = []
-l_sdd = []
-risks = []
-pick_1 = []
-pick_2 = []
-t_risks = []
-t_x_acc = []
-t_xz_acc = []
+if __name__ == '__main__':
+    costs = [0, 0.002, 0.004, 0.006, 0.008, 0.01,0.05, 0.1]
 
 
-data_dict = create_data(train_d = 32*10000, test_d = 32*1000)
-for cost in tqdm(costs):
-    result, sdd, preds = exp(data_dict, cost=cost)
-    l_sdd.append(sdd)
-    for key, value in result.items():
-        try:
-            result[key] = torch.round(value.items(), decimals=2)
-        except:
-            result[key] = np.round(value, decimals=2)
-    num_accept.append(result['good non-reject'] + result['bad non-reject'])
-    accept_acc.append(str(result['good non-reject']) + '/' + str(result['bad non-reject']))
-    num_reject.append(result['good reject'] + result['bad reject'])
-    reject_acc.append(str(result['good reject']) + '/' + str(result['bad reject']))
-    y1_acc.append(result['acc y1'])
-    y2_acc.append(result['acc y2'])
-    """
-    colors = []
-    for p in preds['s']:
-        if p <= 0.5:
-            colors.append('r')
-        else:
-            colors.append('g')
+    num_accept = []
+    num_reject = []
+    accept_acc = []
+    reject_acc = []
+    y1_acc = []
+    y2_acc = []
+    l_sdd = []
+    risks = []
+    pick_1 = []
+    pick_2 = []
+    t_risks = []
+    t_x_acc = []
+    t_xz_acc = []
+
+
+    data_dict = create_data(trial = 2,train_d = 32*10000, test_d = 32*1000)
+    for cost in tqdm(costs):
+        result, sdd, preds = exp(data_dict, cost=cost)
+        l_sdd.append(sdd)
+        for key, value in result.items():
+            try:
+                result[key] = torch.round(value.items(), decimals=2)
+            except:
+                result[key] = np.round(value, decimals=2)
+        num_accept.append(result['good non-reject'] + result['bad non-reject'])
+        accept_acc.append(str(result['good non-reject']) + '/' + str(result['bad non-reject']))
+        num_reject.append(result['good reject'] + result['bad reject'])
+        reject_acc.append(str(result['good reject']) + '/' + str(result['bad reject']))
+        y1_acc.append(result['acc y1'])
+        y2_acc.append(result['acc y2'])
+        """
+        colors = []
+        for p in preds['s']:
+            if p <= 0.5:
+                colors.append('r')
+            else:
+                colors.append('g')
+        fig1, ax1 = plt.subplots()
+        # print(len(preds['x']))
+        ax1.scatter(torch.stack(preds['x']), torch.stack(preds['z']), color = colors, s=3)
+        ax1.set_title('Cost = ' + str(cost))
+        ax1.set_xlabel('X')
+        ax1.set_ylabel('Z')
+        import matplotlib.patches as mpatches
+        red_patch = mpatches.Patch(color='r', label='s < 0.5')
+        plt.legend(handles=[red_patch])
+        green_patch = mpatches.Patch(color='g', label='s > 0.5')
+        ax1.legend(handles=[red_patch, green_patch])
+        fig1.savefig('./' + str(cost)+'.pdf', format='pdf')
+        """
+        
+        risks.append(risk(preds['p1'], preds['p2'], preds['s'], preds['y'], cost))
+        pick_1.append(torch.mean(torch.where(torch.stack(preds['p1']).argmax(dim=1) == torch.stack(preds['y']).argmax(dim=1), 1-cost, 0), dtype=float))
+        pick_2.append(torch.mean(torch.where(torch.stack(preds['p2']).argmax(dim=1) == torch.stack(preds['y']).argmax(dim=1), 1, 0), dtype=float))
+        # ax1.legend()
+        binary_map = np.zeros_like(torch.stack(preds['x']))
+        x_values = torch.stack(preds['x'])
+        z_values = torch.stack(preds['z'])
+        y_values = torch.stack(preds['y'])
+        t_risk = 0
+        t_x = 0
+        t_xz = 0
+        for i in range(len(x_values)):
+            x = x_values[i]
+        
+            # Compute the expected max p(y | x, z) over z
+            expected_max_prob = data_dict['test_E'][i]
+            xz_post = data_dict['test_py_xz'][i] 
+            #check = posterior_p_y_given_x_z(x, z_values[i])
+            # Compute the marginalized max_y p(y | x)
+            max_prob = data_dict['test_max'][i] #posterior_p_y_given_x(x)
+            
+            # Compute the difference
+            diff = expected_max_prob - max_prob
+            
+            binary_map[i] = torch.where(diff > cost, 1, 0)
+            
+            if np.where(xz_post > 0.5, 1, 0) == y_values[i].argmax():
+                t_xz += 1
+            if np.where(max_prob > 0.5, 1, 0) == y_values[i].argmax():
+                t_x += 1
+        
+
+        # t_risk = 0
+        # for i in range(len(binary_map)):
+            if binary_map[i] == 1:
+                if np.where(xz_post > 0.5, 1, 0).item() != y_values[i].argmax().item():
+            #     if torch.bernoulli(sigmoid(x_values[i] + z_values[i])) != y_values[i].argmax():
+                    t_risk += 1
+            elif binary_map[i] == 0:
+                if np.where(max_prob > 0.5, 1, 0).item() != y_values[i].argmax().item():
+            #     if torch.bernoulli(sigmoid(x_values[i])) != y_values[i].argmax():
+                    t_risk += 1-cost
+                    
+                    
+        t_risk /= len(binary_map)
+        t_risks.append(t_risk)
+        t_xz_acc.append(t_xz/len(binary_map))
+        t_x_acc.append(t_x/len(binary_map))
+        # breakpoint()
+    # colors = []
+    # for p in preds['y']:
+    #         if p[1] == 1:
+    #             colors.append('r')
+    #         else:
+    #             colors.append('g')
+    # ax1.scatter(torch.stack(preds['x']), torch.stack(preds['z']), color = colors, s=3)
+    # ax1.set_title('cringe')
+    # ax1.set_xlabel('X')
+    # ax1.set_ylabel('Z')
+
     fig1, ax1 = plt.subplots()
-    # print(len(preds['x']))
-    ax1.scatter(torch.stack(preds['x']), torch.stack(preds['z']), color = colors, s=3)
-    ax1.set_title('Cost = ' + str(cost))
-    ax1.set_xlabel('X')
-    ax1.set_ylabel('Z')
-    import matplotlib.patches as mpatches
-    red_patch = mpatches.Patch(color='r', label='s < 0.5')
-    plt.legend(handles=[red_patch])
-    green_patch = mpatches.Patch(color='g', label='s > 0.5')
-    ax1.legend(handles=[red_patch, green_patch])
-    fig1.savefig('./' + str(cost)+'.pdf', format='pdf')
-    """
-    
-    risks.append(risk(preds['p1'], preds['p2'], preds['s'], preds['y'], cost))
-    pick_1.append(torch.mean(torch.where(torch.stack(preds['p1']).argmax(dim=1) == torch.stack(preds['y']).argmax(dim=1), 1-cost, 0), dtype=float))
-    pick_2.append(torch.mean(torch.where(torch.stack(preds['p2']).argmax(dim=1) == torch.stack(preds['y']).argmax(dim=1), 1, 0), dtype=float))
-    # ax1.legend()
-    binary_map = np.zeros_like(torch.stack(preds['x']))
-    x_values = torch.stack(preds['x'])
-    z_values = torch.stack(preds['z'])
-    y_values = torch.stack(preds['y'])
-    t_risk = 0
-    t_x = 0
-    t_xz = 0
-    for i in range(len(x_values)):
-        x = x_values[i]
-      
-        # Compute the expected max p(y | x, z) over z
-        expected_max_prob = data_dict['test_E'][i]
-        xz_post = data_dict['test_py_xz'][i] 
-        #check = posterior_p_y_given_x_z(x, z_values[i])
-        # Compute the marginalized max_y p(y | x)
-        max_prob = data_dict['test_max'][i] #posterior_p_y_given_x(x)
-        
-        # Compute the difference
-        diff = expected_max_prob - max_prob
-        
-        binary_map[i] = torch.where(diff > cost, 1, 0)
-        
-        if np.where(xz_post > 0.5, 1, 0) == y_values[i].argmax():
-            t_xz += 1
-        if np.where(max_prob > 0.5, 1, 0) == y_values[i].argmax():
-            t_x += 1
-    
 
-    # t_risk = 0
-    # for i in range(len(binary_map)):
-        if binary_map[i] == 1:
-            if np.where(xz_post > 0.5, 1, 0).item() != y_values[i].argmax().item():
-        #     if torch.bernoulli(sigmoid(x_values[i] + z_values[i])) != y_values[i].argmax():
-                t_risk += 1
-        elif binary_map[i] == 0:
-            if np.where(max_prob > 0.5, 1, 0).item() != y_values[i].argmax().item():
-        #     if torch.bernoulli(sigmoid(x_values[i])) != y_values[i].argmax():
-                t_risk += 1-cost
-                
-                
-    t_risk /= len(binary_map)
-    t_risks.append(t_risk)
-    t_xz_acc.append(t_xz/len(binary_map))
-    t_x_acc.append(t_x/len(binary_map))
-    # breakpoint()
-# colors = []
-# for p in preds['y']:
-#         if p[1] == 1:
-#             colors.append('r')
-#         else:
-#             colors.append('g')
-# ax1.scatter(torch.stack(preds['x']), torch.stack(preds['z']), color = colors, s=3)
-# ax1.set_title('cringe')
-# ax1.set_xlabel('X')
-# ax1.set_ylabel('Z')
+    ax1.plot(costs, y2_acc)
+    ax1.set_ylim(0, 1)
+    ax1.set_title("Y2 Accuracy (% of all predictions) vs. Cost")
 
-fig1, ax1 = plt.subplots()
+    fig1, ax1 = plt.subplots()
 
-ax1.plot(costs, y2_acc)
-ax1.set_ylim(0, 1)
-ax1.set_title("Y2 Accuracy (% of all predictions) vs. Cost")
+    ax1.plot(costs, y1_acc)
+    ax1.set_ylim(0, 1)
+    ax1.set_title("Y1 Accuracy (% of all predictions) vs. Cost")
 
-fig1, ax1 = plt.subplots()
+    fig1, ax1 = plt.subplots()
 
-ax1.plot(costs, y1_acc)
-ax1.set_ylim(0, 1)
-ax1.set_title("Y1 Accuracy (% of all predictions) vs. Cost")
+    ax1.plot(costs, num_accept)
+    ax1.set_title("Number of Y1-Accepts (% of all predictions) vs Cost")
+    ax1.set_ylim(0, 1)
+    # for i in range(len(accept_acc)):
+    #     # if i != 0 and np.abs(num_accept[i-1]-num_accept[i]) < 0.1:
+    #     #     plt.text(costs[i]+0.05, num_accept[i]+0.05, accept_acc[i])
+    #     # else:
+    #     #     plt.text(costs[i], num_accept[i], accept_acc[i])
+    #     plt.text(costs[i], num_accept[i], accept_acc[i])
+    # plt.text(6, 0.7, "Note: we show at each point \n [Correct Accepts]/[Incorrect Accepts] \n based on whether Y1 was correct")
 
-fig1, ax1 = plt.subplots()
+    fig1, ax1 = plt.subplots()
+    ax1.plot(costs, num_reject)
+    ax1.set_title("Number of Y1-Rejects (% of all predictions) vs Cost ")
+    ax1.set_ylim(0, 1)
 
-ax1.plot(costs, num_accept)
-ax1.set_title("Number of Y1-Accepts (% of all predictions) vs Cost")
-ax1.set_ylim(0, 1)
-# for i in range(len(accept_acc)):
-#     # if i != 0 and np.abs(num_accept[i-1]-num_accept[i]) < 0.1:
-#     #     plt.text(costs[i]+0.05, num_accept[i]+0.05, accept_acc[i])
-#     # else:
-#     #     plt.text(costs[i], num_accept[i], accept_acc[i])
-#     plt.text(costs[i], num_accept[i], accept_acc[i])
-# plt.text(6, 0.7, "Note: we show at each point \n [Correct Accepts]/[Incorrect Accepts] \n based on whether Y1 was correct")
+    fig1, ax1 = plt.subplots()
+    ax1.plot(costs, risks, label='Ours')
+    # ax1.plot(costs, pick_1, label='Aways Pick f1')
+    # ax1.plot(costs, pick_2, label='Alwyays Pick f2')
+    ax1.plot(costs, t_risks, label=r'$\tilde{f}^*$')
+    ax1.legend()
+    ax1.set_title("Risk Loss vs Cost")
+    ax1.set_ylabel("Risk")
+    ax1.set_xlabel("Cost")
 
-fig1, ax1 = plt.subplots()
-ax1.plot(costs, num_reject)
-ax1.set_title("Number of Y1-Rejects (% of all predictions) vs Cost ")
-ax1.set_ylim(0, 1)
+    fig1.savefig('riscfig.pdf', format='pdf')
 
-fig1, ax1 = plt.subplots()
-ax1.plot(costs, risks, label='Ours')
-ax1.plot(costs, pick_1, label='Aways Pick f1')
-ax1.plot(costs, pick_2, label='Alwyays Pick f2')
-ax1.plot(costs, t_risks, label='Optimal Risk Decision')
-ax1.legend()
-ax1.set_title("Risk Loss vs Cost")
-ax1.set_ylabel("Risk")
-ax1.set_xlabel("Cost")
+    fig1, ax1 = plt.subplots()
+    ax1.plot(costs, t_x_acc, label='x acc')
+    ax1.plot(costs, t_xz_acc, label='xz acc')
+    ax1.legend()
 
-fig1.savefig('riscfig.pdf', format='pdf')
+    fig1.savefig('post_acc.pdf', format='pdf')
 
-fig1, ax1 = plt.subplots()
-ax1.plot(costs, t_x_acc, label='x acc')
-ax1.plot(costs, t_xz_acc, label='xz acc')
-ax1.legend()
+    # ax1.set_ylim(0,1)
+    # for i in range(len(reject_acc)):
+    #     # if i != 0 and np.abs(num_reject[i-1]-num_reject[i]) < 0.1:
+    #     #     plt.text(costs[i]+0.05, num_reject[i]+0.05, reject_acc[i])
+    #     # else:
+    #     #     plt.text(costs[i], num_reject[i], reject_acc[i])
+    #     plt.text(costs[i], num_reject[i], reject_acc[i])
+    # plt.text(6, 0.7, "Note: we show at each point \n [Correct Rejects]/[Incorrect rejects] \n based on whether Y1 was correct")
+    # d = 1000
+    # x = torch.normal(mean=torch.zeros((d,1)), std=torch.ones((d,1)))
+    # z = torch.normal(mean=torch.zeros((d,1)), std=torch.ones((d,1)))
 
-fig1.savefig('post_acc.pdf', format='pdf')
+    # y = torch.ones((d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x*z))
 
-# ax1.set_ylim(0,1)
-# for i in range(len(reject_acc)):
-#     # if i != 0 and np.abs(num_reject[i-1]-num_reject[i]) < 0.1:
-#     #     plt.text(costs[i]+0.05, num_reject[i]+0.05, reject_acc[i])
-#     # else:
-#     #     plt.text(costs[i], num_reject[i], reject_acc[i])
-#     plt.text(costs[i], num_reject[i], reject_acc[i])
-# plt.text(6, 0.7, "Note: we show at each point \n [Correct Rejects]/[Incorrect rejects] \n based on whether Y1 was correct")
-# d = 1000
-# x = torch.normal(mean=torch.zeros((d,1)), std=torch.ones((d,1)))
-# z = torch.normal(mean=torch.zeros((d,1)), std=torch.ones((d,1)))
+    # sxz = torch.nn.Sigmoid()(x*z)
 
-# y = torch.ones((d, 1)) * torch.bernoulli(torch.nn.Sigmoid()(x*z))
+    # y, ___ = torch.sort(y)
 
-# sxz = torch.nn.Sigmoid()(x*z)
-
-# y, ___ = torch.sort(y)
-
-# sxz, ___ = torch.sort(sxz)
+    # sxz, ___ = torch.sort(sxz)
 
 
-# fig2, ax2 = plt.subplots()
+    # fig2, ax2 = plt.subplots()
 
 
-# ax2.hist(sxz[:-1], bins=5)
+    # ax2.hist(sxz[:-1], bins=5)
