@@ -1,12 +1,10 @@
 
 import torch 
 from tqdm import tqdm
-
-from training.early_stopper import EarlyStopper
-from training.loss import loss_joint
+from training.loss import loss_hinge_joint
 
 def train_two_stage_experiment(data_dict, cost, two_stage_model):
-    epoch=1
+    epoch=6
     batch_size=32
     optimizer = torch.optim.Adam(two_stage_model.parameters(), lr=0.01)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
@@ -23,8 +21,6 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model):
     y_val = data_dict['y_val']
     z_val = data_dict['z_val']
     
-    last_3_valid = torch.zeros(3)
-    early_stopper = EarlyStopper(patience=15, min_delta=5)
     training_log_dict = {}
     
     for i in range(epoch):
@@ -36,8 +32,8 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model):
             y_batch = y_train[batch-batch_size:batch]
 
             optimizer.zero_grad()
-            p1, p2, s = two_stage_model(x_batch, z_batch)
-            loss = loss_joint(x_batch, z_batch, y_batch, cost, p1, p2, s)
+            t1, t2, s = two_stage_model(x_batch, z_batch)
+            loss = loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
 
             loss.backward()
             # for i,p in enumerate(jm.parameters()):
@@ -55,7 +51,7 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model):
                 z_batch = z_val[batch-batch_size:batch]
                 y_batch = y_val[batch-batch_size:batch]
                 p1, p2, s = two_stage_model(x_batch, z_batch)
-                valid_loss = loss = loss_joint(x_batch, z_batch, y_batch, cost, p1, p2, s)
+                valid_loss = loss = loss_hinge_joint(x_batch, z_batch, y_batch, cost, p1, p2, s)
                 
                 # if early_stopper.early_stop(valid_loss):             
                 #     print('early stopping')

@@ -33,12 +33,9 @@ class BasicTwoStageSeparate(torch.nn.Module):
  
         
     def forward(self, x,z):
-        y1 = (self.sigmoid(x*self.a_y1 + self.b_y1))
-        y2 = (self.sigmoid((x*z)* self.c_y2  + self.d_y2))
+        y1 = x*self.a_y1 + self.b_y1
+        y2 = (x*z)* self.c_y2  + self.d_y2
         
         s = self.sigmoid(x-self.s_1)*self.sigmoid(self.s_2-x)
-        y1 = torch.cat((1-y1, y1), dim=1)
-        y2 = torch.cat((1-y2, y2), dim=1)
-        s = torch.cat((1-s, s), dim=1)
         
         return y1, y2, s
