@@ -26,14 +26,14 @@ from generate_data import load_data
 
 
 if __name__ == '__main__':
-    costs = [0, 0.002, 0.004, 0.006, 0.008, 0.01,0.05, 0.1]
-    test_n = 32*10000
-    train_n = 32*10000
-    mc_posterior_n = 32*10000
-    num_trails = 2
+    costs = [0]
+    test_n = 32*1000
+    train_n = 32*1000
+    mc_posterior_n = 32*1000
+    num_trails = 1
     
     for trial in range(num_trails):
         data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
-        for cost in tqdm(costs):
+        for cost in costs:
             two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=2)
             train_two_stage_experiment(data_dict, cost, two_stage_model)
