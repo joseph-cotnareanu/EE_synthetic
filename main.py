@@ -27,9 +27,9 @@ from generate_data import load_data
 
 if __name__ == '__main__':
     costs = [0]
-    test_n = 32*1000
-    train_n = 32*1000
-    mc_posterior_n = 32*1000
+    test_n = 32*100
+    train_n = 32*100
+    mc_posterior_n = 32*10
     num_trails = 1
     
     for trial in range(num_trails):

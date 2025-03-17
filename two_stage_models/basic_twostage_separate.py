@@ -38,8 +38,8 @@ class BasicTwoStageSeparate(torch.nn.Module):
         y2 = (x+z)* self.c_y2  
         #+ self.d_y2
         
-        #s = self.sigmoid(x-self.s_1)*self.sigmoid(self.s_2-x)
-        s=1
-        if debug: breakpoint()        
-        print(self.c_y2)
+        s = self.sigmoid(x-self.s_1)*self.sigmoid(self.s_2-x)
+        # s=1
+        # if debug: breakpoint()        
+        # print(self.c_y2)
         return y1, y2, s, self.c_y2
