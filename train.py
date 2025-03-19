@@ -8,8 +8,8 @@ from matplotlib import pyplot as plt
 
 def train_two_stage_experiment(data_dict, cost, two_stage_model):
     
-    epoch = 2
-    batch_size = 4
+    epoch = 10
+    batch_size = 1
     optimizer = torch.optim.Adam(two_stage_model.parameters(), lr=0.0001)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1)
     train_n = data_dict['train_n']
@@ -30,6 +30,9 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model):
     training_log_dict = {}
     cs = []
     ds = []
+    f1ls = []
+    f2ls = []
+    ls = []
     for i in range(epoch):
         running_loss = 0
         debug=False
@@ -51,8 +54,10 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model):
             ds.append(d.detach().numpy().item())
             debug=False
             #s = 1
-            loss = loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
-            
+            loss, loss_f1, loss_f2 = loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
+            f1ls.append(loss_f1.detach().numpy().item())
+            f2ls.append(loss_f2.detach().numpy().item())
+            ls.append(loss.detach().numpy().item())
             loss.backward()
             optimizer.step()
 
@@ -92,5 +97,28 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model):
     
     plt.tight_layout()
     plt.savefig('acc.pdf')
+
+    fig, ax = plt.subplots(1, 3, figsize=(15, 5))
+    
+    ax[0].plot(ls, label='surrogate', marker='o')
+    ax[0].set_title('surrogate loss')
+    ax[0].set_xlabel('Epoch')
+    ax[0].set_ylabel('Accuracy')
+    ax[0].legend()
+    
+    ax[1].plot(f1ls, label='f1 loss', marker='o', color='r')
+    ax[1].set_title('f1 loss')
+    ax[1].set_xlabel('Epoch')
+    ax[1].set_ylabel('loss')
+    ax[1].legend()
+    
+    ax[2].plot(f2ls, label='f2 loss', marker='o', color='r')
+    ax[2].set_title('f2 loss')
+    ax[2].set_xlabel('Epoch')
+    ax[2].set_ylabel('loss')
+    ax[2].legend()
+
+    plt.tight_layout()
+    plt.savefig('losses.pdf')
 
     return two_stage_model, training_log_dict, 
