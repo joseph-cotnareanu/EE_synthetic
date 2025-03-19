@@ -3,15 +3,14 @@ from torch.nn.functional import relu
 from sklearn.metrics import hinge_loss
 from hinge_utils import one_hot_to_hinge_labels
 from torchmetrics import HingeLoss
-
+hinge=HingeLoss(task='binary')
 def binary_hinge_loss(t,y):
     """
     hinge loss: max(0,1-t*y)
     """
     return relu(1-torch.mul(t,y))
-    hinge=HingeLoss(task='binary')
+    # hinge=HingeLoss(task='binary')
     # return hinge(t, torch.where(y==-1, 0, y))
-    # return hinge(t, y)
 
 
 
