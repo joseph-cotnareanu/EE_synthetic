@@ -33,6 +33,9 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
     training_log_dict = {}
     cs = []
     ds = []
+    f1ls = []
+    f2ls = []
+    ls = []
     for i in range(epoch):
         running_loss = 0
         debug=False
@@ -54,8 +57,10 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
             ds.append(d.detach().numpy().item())
             debug=False
             #s = 1
-            loss = loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
-            
+            loss, loss_f1, loss_f2 = loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
+            f1ls.append(loss_f1.detach().numpy().item())
+            f2ls.append(loss_f2.detach().numpy().item())
+            ls.append(loss.detach().numpy().item())
             loss.backward()
             optimizer.step()
 
@@ -79,4 +84,8 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
     training_log_dict['param_ds'] = ds
     training_log_dict['track_t1_acc'] = track_t1_acc
     training_log_dict['track_t2_acc'] = track_t2_acc
-    return two_stage_model, training_log_dict
+    training_log_dict['ls'] = ls
+    training_log_dict['f1ls'] = f1ls
+    training_log_dict['f2ls'] = f2ls
+
+    return two_stage_model, training_log_dict, 
