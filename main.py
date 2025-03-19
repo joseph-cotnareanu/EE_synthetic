@@ -8,19 +8,19 @@ from storing_plotting import storing_and_plotting
 from train import train_two_stage_experiment
 seed = 42  # or any number you choose
 
-# Python random seed
-random.seed(seed)
+# # Python random seed
+# random.seed(seed)
 
-# NumPy random seed
-np.random.seed(seed)
+# # NumPy random seed
+# np.random.seed(seed)
 
-# PyTorch random seed
-torch.manual_seed(seed)
+# # PyTorch random seed
+# torch.manual_seed(seed)
 
-# If you are using CUDA
-if torch.cuda.is_available():
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # for multi-GPU
+# # If you are using CUDA
+# if torch.cuda.is_available():
+#     torch.cuda.manual_seed(seed)
+#     torch.cuda.manual_seed_all(seed)  # for multi-GPU
     
 from create_model import create_two_stage_model
 from generate_data import load_data
@@ -28,13 +28,13 @@ from generate_data import load_data
 
 
 if __name__ == '__main__':
-    costs = [0]
+    costs = [0.2]
     test_n = 32*100
     train_n = 32*100
     mc_posterior_n = 32*10
     num_trails = 1
     
-    training_configs = {'epoch':1000, 'lr':0.001, 'batch_size':train_n}
+    training_configs = {'epoch':1000, 'lr':0.01, 'batch_size':train_n}
     for trial in range(num_trails):
         data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
         for cost in costs:

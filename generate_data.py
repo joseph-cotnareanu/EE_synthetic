@@ -8,7 +8,7 @@ from torch.nn.functional import sigmoid
 
 def posterior_p_y_given_x(x, n_samples):
     # Sample z from U[-1,1]
-    z_samples = np.random.uniform(-10, 10, n_samples)
+    z_samples = np.random.uniform(-1, 1, n_samples)
 
     # Compute sigmoid(x + z) for each z
     prob_y_given_xz = sigmoid(x + z_samples)
@@ -25,7 +25,7 @@ def posterior_p_y_given_x(x, n_samples):
 
 def expected_max_p_y_given_xz(x, n_samples):
     # Sample z from U[-1,1]
-    z_samples = np.random.uniform(-10, 10, n_samples)
+    z_samples = np.random.uniform(-1, 1, n_samples)
 
     # Compute sigmoid(x + z) for each z
     prob_y_given_xz = sigmoid(x + z_samples)
@@ -43,7 +43,7 @@ def posterior_p_y_given_x_z(x, z):
 
 
 def generate_xzy(n: int):
-    r1, r2 = -10, 10
+    r1, r2 = -1, 1
     # sample on the uniform distribution
     x = (r1 - r2) * torch.rand((n, 1)) + r2
     z = (r1 - r2) * torch.rand((n, 1)) + r2

@@ -13,8 +13,8 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
     batch_size = training_configs['batch_size']
     lr = training_configs['lr']
     
-    optimizer = torch.optim.Adam(two_stage_model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1)
+    optimizer = torch.optim.Adam(two_stage_model.parameters(), lr=0)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
     train_n = data_dict['train_n']
     test_n = data_dict['test_n']
    
@@ -42,6 +42,11 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
 
         
         for batch in tqdm(range(batch_size, train_n+batch_size, batch_size)):
+            # test_acc_t1, test_q
+            # test_acc_t1, test_acc_t2 = compute_accuracies(two_stage_model, x_test ,z_test,y_test,batch_size, test_n )
+            # track_t1_acc.append(test_acc_t1)
+            # track_t2_acc.append(test_acc_t2)
+            # breakpoint()
             if (batch-batch_size) % 32 == 0:
                 test_acc_t1, test_acc_t2 = compute_accuracies(two_stage_model, x_test ,z_test,y_test,batch_size, test_n )
                 track_t1_acc.append(test_acc_t1)
@@ -73,6 +78,12 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
         track_epoch_loss.append(avg_loss)
         print(f"Epoch {i+1}/{epoch}, Loss: {avg_loss}")
         scheduler.step()
+        t1_all, t2_all, y_all, x_all, z_all = get_pred(two_stage_model, x_test ,z_test,y_test,batch_size, test_n)
+
+        plot_xzy(x_all, z_all, y_all[:,1], prefix='gt')
+        plot_xzy(x_all, z_all, t1_all, prefix='t1')
+        plot_xzy(x_all, z_all, t2_all, prefix='t2')
+        # breakpoint()
         
     t1_all, t2_all, y_all, x_all, z_all = get_pred(two_stage_model, x_test ,z_test,y_test,batch_size, test_n)
     plot_xzy(x_all, z_all, y_all[:,1], prefix='gt')
