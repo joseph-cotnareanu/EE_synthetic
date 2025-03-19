@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import random
 from tqdm import tqdm
+from storing_plotting import storing_and_plotting
 
 from train import train_two_stage_experiment
 seed = 42  # or any number you choose
@@ -25,6 +26,7 @@ from create_model import create_two_stage_model
 from generate_data import load_data
 
 
+
 if __name__ == '__main__':
     costs = [0]
     test_n = 32*100
@@ -32,8 +34,13 @@ if __name__ == '__main__':
     mc_posterior_n = 32*10
     num_trails = 1
     
+    training_configs = {'epoch':1000, 'lr':0.001, 'batch_size':train_n}
     for trial in range(num_trails):
         data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
         for cost in costs:
             two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=2)
-            train_two_stage_experiment(data_dict, cost, two_stage_model)
+            two_stage_model, training_log_dict = train_two_stage_experiment(data_dict, cost, two_stage_model, training_configs)
+
+
+            storing_and_plotting(training_log_dict)
+
