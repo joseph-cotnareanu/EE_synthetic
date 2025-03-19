@@ -30,7 +30,7 @@ def compute_accuracies(two_stage_model, x,z,y,batch_size, n ):
             z_batch = z[batch - batch_size:batch]
             y_batch = y[batch - batch_size:batch]
             
-            t1, t2, s, c = two_stage_model(x_batch, z_batch, debug=False)
+            t1, t2, s, c,d = two_stage_model(x_batch, z_batch, debug=False)
             
             t1_list.append(t1)
             t2_list.append(t2)

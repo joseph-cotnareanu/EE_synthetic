@@ -29,6 +29,7 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model):
     track_t2_acc = []
     training_log_dict = {}
     cs = []
+    ds = []
     for i in range(epoch):
         running_loss = 0
         debug=False
@@ -45,8 +46,9 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model):
             y_batch = y_train[batch-batch_size:batch]
 
             optimizer.zero_grad()
-            t1, t2, s, c = two_stage_model(x_batch, z_batch, debug=debug)
+            t1, t2, s, c, d= two_stage_model(x_batch, z_batch, debug=debug)
             cs.append(c.detach().numpy().item())
+            ds.append(d.detach().numpy().item())
             debug=False
             #s = 1
             loss = loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
@@ -66,7 +68,13 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model):
         
     fig1, ax1 = plt.subplots()
     ax1.plot(cs)
+    ax1.set_title('cplot')
     fig1.savefig('cplot.pdf')
+    plt.close()
+    fig1, ax1 = plt.subplots()
+    ax1.plot(ds)
+    ax1.set_title('dplot')
+    fig1.savefig('dplot.pdf')
     plt.close()
     fig, ax = plt.subplots(1, 2, figsize=(10, 5))
     
