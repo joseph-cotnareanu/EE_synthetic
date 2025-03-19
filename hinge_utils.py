@@ -6,7 +6,7 @@ def one_hot_to_hinge_labels(y_one_hot):
     to
     y = [1,-1,1,...]
     """
-    y_hinge = y_one_hot
+    y_hinge = y_one_hot.clone()
     y_hinge[:,0] = y_hinge[:,0]*-1
     y_hinge = torch.sum(y_hinge, axis=1)[:,None]
     return y_hinge

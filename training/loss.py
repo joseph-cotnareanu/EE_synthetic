@@ -8,6 +8,8 @@ def binary_hinge_loss(t,y):
     """
     hinge loss: max(0,1-t*y)
     """
+    # return torch.ones_like(y)
+    # return y
     return relu(1-torch.mul(t,y))
     # hinge=HingeLoss(task='binary')
     # return hinge(t, torch.where(y==-1, 0, y))
