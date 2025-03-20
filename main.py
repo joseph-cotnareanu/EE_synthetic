@@ -33,12 +33,12 @@ if __name__ == '__main__':
     train_n = 32*100
     mc_posterior_n = 32*10
     num_trials = 1
-    
+    two_stage_model_name = 'linear' # NN
     training_configs = {'epoch':20, 'lr':0.001, 'batch_size':32}
     for trial in range(num_trials):
         data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
         for cost in costs:
-            two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=2)
+            two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=2, two_stage_model_nam=two_stage_model_name)
             two_stage_model, training_log_dict = train_two_stage_experiment(data_dict, cost, two_stage_model, training_configs)
 
 
