@@ -82,4 +82,4 @@ class BasicTwoStageSeparate(torch.nn.Module):
         s = self.sigmoid(x-self.s_1)*self.sigmoid(self.s_2-x)
        
         param_tracking_dict = {'a' : self.a_y1, 'b':self.b_y1, 'c':self.c_y2, 'd':self.d_y2, 's':s}
-        return y1, y2, param_tracking_dict
+        return y1, y2, s, param_tracking_dict

@@ -60,7 +60,7 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
             #     print(last_batch == x_batch)
             #     breakpoint()
             optimizer.zero_grad()
-            t1, t2, param_dict= two_stage_model(x_batch, z_batch, debug=debug)
+            t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=debug)
             if 'c' in param_dict:
 
                 cs.append(param_dict['c'].detach().numpy().item())
