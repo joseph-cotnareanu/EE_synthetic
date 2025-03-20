@@ -83,17 +83,19 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
         track_epoch_loss.append(avg_loss)
         print(f"Epoch {i+1}/{epoch}, Loss: {avg_loss}")
         scheduler.step()
-        t1_all, t2_all, y_all, x_all, z_all = get_pred(two_stage_model, x_test ,z_test,y_test,batch_size, test_n)
+        t1_all, t2_all, y_all, x_all, z_all, s_all = get_pred(two_stage_model, x_test ,z_test,y_test,batch_size, test_n)
     
-        plot_xzy(x_all, z_all, y_all[:,1], prefix='gt')
-        plot_xzy(x_all, z_all, t1_all, prefix='t1')
-        plot_xzy(x_all, z_all, t2_all, prefix='t2')
+        plot_xzy(x_all, z_all,s_all, prefix='s_')
+        plot_xzy(x_all, z_all, y_all[:,1], prefix='gt_')
+        plot_xzy(x_all, z_all, t1_all, prefix='t1_')
+        plot_xzy(x_all, z_all, t2_all, prefix='t2_')
         # breakpoint()
         
-    t1_all, t2_all, y_all, x_all, z_all = get_pred(two_stage_model, x_test ,z_test,y_test,batch_size, test_n)
-    plot_xzy(x_all, z_all, y_all[:,1], prefix='gt')
-    plot_xzy(x_all, z_all, t1_all, prefix='t1')
-    plot_xzy(x_all, z_all, t2_all, prefix='t2')
+    t1_all, t2_all, y_all, x_all, z_all, s_all = get_pred(two_stage_model, x_test ,z_test,y_test,batch_size, test_n)
+    plot_xzy(x_all, z_all,s_all, prefix='s_')
+    plot_xzy(x_all, z_all, y_all[:,1], prefix='gt_')
+    plot_xzy(x_all, z_all, t1_all, prefix='t1_')
+    plot_xzy(x_all, z_all, t2_all, prefix='t2_')
 
     
     training_log_dict['param_cs'] = cs
