@@ -34,7 +34,7 @@ if __name__ == '__main__':
     mc_posterior_n = 32*10
     num_trials = 1
     
-    training_configs = {'epoch':10, 'lr':0.001, 'batch_size':32}
+    training_configs = {'epoch':20, 'lr':0.001, 'batch_size':32}
     for trial in range(num_trials):
         data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
         for cost in costs:

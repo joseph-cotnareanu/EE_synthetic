@@ -60,10 +60,11 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
             #     print(last_batch == x_batch)
             #     breakpoint()
             optimizer.zero_grad()
-            t1, t2, s, c, d= two_stage_model(x_batch, z_batch, debug=debug)
+            t1, t2, param_dict= two_stage_model(x_batch, z_batch, debug=debug)
+            if 'c' in param_dict:
 
-            cs.append(c.detach().numpy().item())
-            ds.append(d.detach().numpy().item())
+                cs.append(param_dict['c'].detach().numpy().item())
+                ds.append(param_dict['d'].detach().numpy().item())
             debug=False
             #s = 1
             loss, loss_f1, loss_f2 = loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
