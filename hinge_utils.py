@@ -31,7 +31,7 @@ def get_pred(two_stage_model, x,z,y,batch_size, n ):
             z_batch = z[batch - batch_size:batch]
             y_batch = y[batch - batch_size:batch]
             
-            t1, t2, s, c,d = two_stage_model(x_batch, z_batch, debug=False)
+            t1, t2, _ = two_stage_model(x_batch, z_batch, debug=False)
             x_list.append(x_batch)
             z_list.append(z_batch)
             t1_list.append(t1)
