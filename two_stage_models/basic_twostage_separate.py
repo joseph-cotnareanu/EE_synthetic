@@ -4,7 +4,7 @@ import torch.nn as nn
 class NNTwoStageSeparate(torch.nn.Module):
     def __init__(self,x_dim:int, z_dim:int, num_classe:int):
         
-        super(BasicTwoStageSeparate, self).__init__()
+        super(NNTwoStageSeparate, self).__init__()
         
         self.param_tracking_dict = {}
         self.y1_in = nn.Linear(1,4)
