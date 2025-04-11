@@ -7,7 +7,7 @@ class NNTwoStageSeparate(torch.nn.Module):
     def __init__(self,x_dim:int, z_dim:int, num_classe:int):
         
         super(NNTwoStageSeparate, self).__init__()
-        hidden_dim = 64
+        hidden_dim = 128
         self.param_tracking_dict = {}
         self.y1_in = nn.Linear(1, hidden_dim)
         self.y1_hid = nn.Linear(hidden_dim, hidden_dim)

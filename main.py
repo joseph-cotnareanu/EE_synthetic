@@ -42,12 +42,12 @@ def data_dict_to_dataloader(data_dict):
 
 if __name__ == '__main__':
     costs = [0.03, 0.05, 0.07] # between 0 and 0.1
-    test_n = 32*100
-    train_n = 32*100
-    mc_posterior_n = 32*10
+    test_n = 32*1000
+    train_n = 32*1000
+    mc_posterior_n = 32*100
     num_trials = 1
     two_stage_model_name = 'NN' # NN
-    training_configs = {'epoch':10, 'lr':0.001, 'batch_size':128}
+    training_configs = {'epoch':50, 'lr':0.001, 'batch_size':512}
     for trial in range(num_trials):
         data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
         
