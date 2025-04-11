@@ -7,7 +7,7 @@ from training.loss import loss_hinge_joint
 
 
 
-def train_two_stage_experiment(data_dict, cost, two_stage_model, training_configs):
+def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs):
     
     epoch = training_configs['epoch']
     batch_size = training_configs['batch_size']
@@ -15,17 +15,7 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
     
     optimizer = torch.optim.Adam(two_stage_model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1)
-    train_n = data_dict['train_n']
-    test_n = data_dict['test_n']
-   
 
-    x_train = data_dict['x_train']
-    y_train = data_dict['y_train']
-    z_train = data_dict['z_train']
-    
-    x_test = data_dict['x_test']
-    y_test = data_dict['y_test']
-    z_test = data_dict['z_test']
     track_batch_loss = []
     track_epoch_loss = []
     track_t1_acc = []
@@ -40,25 +30,18 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
     for i in range(epoch):
         running_loss = 0
         debug=False
+        
 
         
-        for batch in tqdm(range(batch_size, train_n+batch_size, batch_size)):
-            # test_acc_t1, test_q
-            # test_acc_t1, test_acc_t2 = compute_accuracies(two_stage_model, x_test ,z_test,y_test,batch_size, test_n )
-            # track_t1_acc.append(test_acc_t1)
-            # track_t2_acc.append(test_acc_t2)
-            # breakpoint()
-            if (batch-batch_size) % 32 == 0:
-                test_acc_t1, test_acc_t2 = compute_accuracies(two_stage_model, x_test ,z_test,y_test,batch_size, test_n )
+        for i, (x_batch, z_batch, y_batch) in enumerate(tqdm(train_loader)):
+            
+            
+            if  i%32 == 0:
+                test_acc_t1, test_acc_t2 = compute_accuracies(two_stage_model, test_loader)
                 track_t1_acc.append(test_acc_t1)
                 track_t2_acc.append(test_acc_t2)
             
-            x_batch = x_train[batch-batch_size:batch]
-            z_batch = z_train[batch-batch_size:batch]
-            y_batch = y_train[batch-batch_size:batch]
-            # if last_batch != None:
-            #     print(last_batch == x_batch)
-            #     breakpoint()
+           
             optimizer.zero_grad()
             t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=debug)
             if 'c' in param_dict:
@@ -68,9 +51,9 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
             debug=False
             #s = 1
             loss, loss_f1, loss_f2 = loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
-            f1ls.append(loss_f1.detach().numpy().item())
-            f2ls.append(loss_f2.detach().numpy().item())
-            ls.append(loss.detach().numpy().item())
+            f1ls.append(loss_f1.detach().numpy().item()/x_batch.shape[0])
+            f2ls.append(loss_f2.detach().numpy().item()/x_batch.shape[0])
+            ls.append(loss.detach().numpy().item()/x_batch.shape[0])
             loss.backward()
             optimizer.step()
 
@@ -79,23 +62,26 @@ def train_two_stage_experiment(data_dict, cost, two_stage_model, training_config
             
 
         last_batch=x_batch.clone()
-        avg_loss = running_loss/ train_n
+        avg_loss = running_loss/ len(train_loader.dataset)
         track_epoch_loss.append(avg_loss)
         print(f"Epoch {i+1}/{epoch}, Loss: {avg_loss}")
         scheduler.step()
-        t1_all, t2_all, y_all, x_all, z_all, s_all = get_pred(two_stage_model, x_test ,z_test,y_test,batch_size, test_n)
-    
-        plot_xzy(x_all, z_all,s_all, prefix='s_')
-        plot_xzy(x_all, z_all, y_all[:,1], prefix='gt_')
-        plot_xzy(x_all, z_all, t1_all, prefix='t1_')
-        plot_xzy(x_all, z_all, t2_all, prefix='t2_')
+        # t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all = get_pred(two_stage_model, x_test ,z_test,y_test,E_max_py_xz, max_y_x, py_xz,cost, batch_size, test_n)
+        
+        # plot_xzy(x_all, z_all,s_all, prefix='s_')
+        # plot_xzy(x_all, z_all, y_all[:,1], prefix='gt_')
+        # plot_xzy(x_all, z_all, t1_all, prefix='t1_')
+        # plot_xzy(x_all, z_all, t2_all, prefix='t2_')
         # breakpoint()
         
-    t1_all, t2_all, y_all, x_all, z_all, s_all = get_pred(two_stage_model, x_test ,z_test,y_test,batch_size, test_n)
-    plot_xzy(x_all, z_all,s_all, prefix='s_')
-    plot_xzy(x_all, z_all, y_all[:,1], prefix='gt_')
-    plot_xzy(x_all, z_all, t1_all, prefix='t1_')
-    plot_xzy(x_all, z_all, t2_all, prefix='t2_')
+    t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all = get_pred(two_stage_model, test_loader,cost)
+    print('average defferal to f2:', torch.mean(s_all))
+    print('average ground truth defferal to f2:', torch.mean(gt_s_all))
+    plot_xzy(x_all, z_all,s_all, prefix=str(cost)+'_s_')
+    plot_xzy(x_all, z_all,gt_s_all, prefix=str(cost)+'_gt_s_')
+    plot_xzy(x_all, z_all, y_all[:,1], prefix=str(cost)+'_gt_')
+    plot_xzy(x_all, z_all, t1_all, prefix=str(cost)+'_t1_')
+    plot_xzy(x_all, z_all, t2_all, prefix=str(cost)+'_t2_')
 
     
     training_log_dict['param_cs'] = cs

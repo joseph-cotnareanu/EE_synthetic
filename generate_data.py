@@ -16,8 +16,6 @@ def posterior_p_y_given_x(x, n_samples):
     # Compute p(y=1 | x)
     p_y1_x = torch.mean(prob_y_given_xz)
 
-    # Return max(p(y=1 | x), p(y=0 | x))
-    # return max(p_y1_x, 1 - p_y1_x)
     return p_y1_x
 
 # Monte Carlo approximation of expected max_y p(y | x, z)
@@ -78,7 +76,7 @@ def create_data(trial: int, train_n: int, test_n: int, mc_posterior_n: int):
 
     # we set the seed with the trial index.
     torch.manual_seed(trial)
-    # bounds of the Uniform
+   
     x_train, z_train, y_train = generate_xzy(train_n)
     x_val, z_val, y_val = generate_xzy(train_n)
     x_test, z_test, y_test = generate_xzy(test_n)
@@ -139,11 +137,12 @@ def precompute_posterior_and_store(x_values, z_values, num_samples):
         expected_max_prob = expected_max_p_y_given_xz(x, num_samples)
 
         # Compute the marginalized max_y p(y | x)
-        max_prob = posterior_p_y_given_x(x, num_samples)
+        prob_y_x = posterior_p_y_given_x(x, num_samples)
+        max_prob = torch.max(prob_y_x, 1 - prob_y_x)
         xz_post = posterior_p_y_given_x_z(x, z_values[i])
 
         E_max_py_xz.append(expected_max_prob)
         max_y_x.append(max_prob)
         py_xz.append(xz_post)
 
-    return E_max_py_xz, max_y_x, py_xz
+    return torch.tensor(E_max_py_xz), torch.tensor(max_y_x), torch.tensor(py_xz)

@@ -1,7 +1,11 @@
 from matplotlib import pyplot as plt
+import os
+figure_path = 'figures'
+def storing_and_plotting(training_log_dict, prefix):
 
-def storing_and_plotting(training_log_dict):
-
+   
+    if not os.path.exists(figure_path):
+        os.makedirs(figure_path)
     ls = training_log_dict['ls']
     f1ls = training_log_dict['f1ls']
     f2ls = training_log_dict['f2ls']
@@ -12,12 +16,12 @@ def storing_and_plotting(training_log_dict):
     fig1, ax1 = plt.subplots()
     ax1.plot(param_cs)
     ax1.set_title('cplot')
-    fig1.savefig('cplot.pdf')
+    fig1.savefig(os.path.join(figure_path, prefix+'cplot.pdf'))
     plt.close()
     fig1, ax1 = plt.subplots()
     ax1.plot(param_ds)
     ax1.set_title('dplot')
-    fig1.savefig('dplot.pdf')
+    fig1.savefig(os.path.join(figure_path, prefix+'dplot.pdf'))
     plt.close()
     fig, ax = plt.subplots(1, 2, figsize=(10, 5))
     
@@ -34,7 +38,7 @@ def storing_and_plotting(training_log_dict):
     ax[1].legend()
     
     plt.tight_layout()
-    plt.savefig('acc.pdf')
+    plt.savefig(os.path.join(figure_path, prefix+'acc.pdf'))
     plt.close()
 
     fig, ax = plt.subplots(1, 3, figsize=(15, 5))
@@ -58,16 +62,18 @@ def storing_and_plotting(training_log_dict):
     ax[2].legend()
 
     plt.tight_layout()
-    plt.savefig('losses.pdf')
+    plt.savefig(os.path.join(figure_path,prefix+'losses.pdf'))
 
 
 
 def plot_xzy(x,z,y, prefix):
+    
     plt.figure(figsize=(8, 6))
     sc = plt.scatter(x, z, c=y, cmap="viridis", edgecolor="k", alpha=0.75)
-    plt.colorbar(sc, label="t1 or y")
+    plt.colorbar(sc)
     plt.xlabel("X")
     plt.ylabel("Z")
-
-    plt.savefig(prefix+'xyz.pdf')
+    if not os.path.exists(figure_path):
+        os.makedirs(figure_path)
+    plt.savefig(os.path.join(figure_path,prefix+'xyz.pdf'))
     plt.close()
