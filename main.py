@@ -3,7 +3,9 @@ from storing_plotting import storing_and_plotting
 from torch.utils.data import  DataLoader, TensorDataset
 from train import train_two_stage_experiment, sep_hinge_experiment
 from matplotlib import pyplot as plt
+import numpy as np
 import os
+from tqdm import tqdm
 seed = 42  # or any number you choose
 
 # # Python random seed
@@ -43,7 +45,8 @@ def data_dict_to_dataloader(data_dict):
     return train_loader, test_loader
 
 if __name__ == '__main__':
-    costs = [0.03, 0.05, 0.07] # between 0 and 0.1
+    # costs = [0.03, 0.05, 0.07] # between 0 and 0.1
+    costs = list(np.arange(0.01,0.25, 0.02))
     test_n = 32*1000
     train_n = 32*1000
     mc_posterior_n = 32*100
@@ -65,7 +68,7 @@ if __name__ == '__main__':
         
         train_loader, test_loader = data_dict_to_dataloader(data_dict)
         
-        for cost in costs:
+        for cost in tqdm(costs):
             two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=2, two_stage_model_name=two_stage_model_name)
             if exp == 'two_stage_experiment': 
                 two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs)
@@ -101,30 +104,30 @@ if __name__ == '__main__':
 
                 storing_and_plotting(training_log_dict, prefix='sep_exp' + str(cost)+'_')
             print('========== done cost = ' + str(cost) + ' ==========')
-        
-        fig, ax = plt.subplots(3, 1, figsize=(15, 5))
-        ax[0,0].scatter(x=costs, y=cost_plot_log_2s['test_avg_l01c'], label='2-stage experiment')
-        ax[0,0].scatter(x=costs, y=cost_plot_log_sep['test_avg_l01c'], label='separate training experiment')
-        ax[0,0].set_title('average test-set l01c')
-        ax[0,0].set_ylabel('l01c')
-        ax[0,0].set_xlabel('cost')
-        ax[0,0].legend()
+        # breakpoint()
+        fig, ax = plt.subplots(3, 1, figsize=(5,15))
+        ax[0].scatter(x=costs, y=cost_plot_log_2s['test_avg_l01c'], label='2-stage experiment')
+        ax[0].scatter(x=costs, y=cost_plot_log_sep['test_avg_l01c'], label='separate training experiment')
+        ax[0].set_title('average test-set l01c')
+        ax[0].set_ylabel('l01c')
+        ax[0].set_xlabel('cost')
+        ax[0].legend()
 
-        ax[1,0].scatter(x=costs, y=cost_plot_log_2s['df_testacc'], label='2-stage')
-        ax[1,0].scatter(x=costs, y=cost_plot_log_sep['df_testacc'], label='seperate')
-        ax[1,0].set_title('average test-set deferral accuracy')
-        ax[1,0].set_ylabel('deferral accuracy')
-        ax[1,0].set_xlabel('cost')
-        ax[1,0].legend()
+        ax[1].scatter(x=costs, y=cost_plot_log_2s['df_testacc'], label='2-stage')
+        ax[1].scatter(x=costs, y=cost_plot_log_sep['df_testacc'], label='seperate')
+        ax[1].set_title('average test-set deferral accuracy')
+        ax[1].set_ylabel('deferral accuracy')
+        ax[1].set_xlabel('cost')
+        ax[1].legend()
 
-        ax[2,0].scatter(x=costs, y=cost_plot_log_2s['df_testrate'], label='2-stage')
-        ax[2,0].scatter(x=costs, y=cost_plot_log_sep['df_testrate'], label='seperate')
-        ax[2,0].set_title('average test-set deferral rate')
-        ax[2,0].set_ylabel('deferral rate')
-        ax[2,0].set_xlabel('cost')
-        
+        ax[2].scatter(x=costs, y=cost_plot_log_2s['df_testrate'], label='2-stage')
+        ax[2].scatter(x=costs, y=cost_plot_log_sep['df_testrate'], label='seperate')
+        ax[2].set_title('average test-set deferral rate')
+        ax[2].set_ylabel('deferral rate')
+        ax[2].set_xlabel('cost')
+
         plt.tight_layout
-        plt.savefig('./costfig.pdf')
+        plt.savefig('./figures/costfig.pdf')
         plt.close()
 
 

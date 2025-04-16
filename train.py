@@ -27,9 +27,13 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     f2ls = []
     ls = []
     l01cs = []
-    l01cs_test =[]
+    l01cs_test = []
+    f1_testpen = []
+    f2_testpen = []
+    df_testacc = []
+    df_testrate = []
     last_batch=None
-    for i in range(epoch):
+    for j in range(epoch):
         running_loss = 0
         debug=False
         
@@ -69,7 +73,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
         last_batch=x_batch.clone()
         avg_loss = running_loss/ len(train_loader.dataset)
         track_epoch_loss.append(avg_loss)
-        print(f"Epoch {i+1}/{epoch}, Loss: {avg_loss}")
+        print(f"Epoch {j+1}/{epoch}, Loss: {avg_loss}")
         scheduler.step()
         # t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all = get_pred(two_stage_model, x_test ,z_test,y_test,E_max_py_xz, max_y_x, py_xz,cost, batch_size, test_n)
         
@@ -88,6 +92,31 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     plot_xzy(x_all, z_all, t1_all, prefix=str(cost)+'_t1_')
     plot_xzy(x_all, z_all, t2_all, prefix=str(cost)+'_t2_')
 
+    # for i, (x_batch, z_batch, y_batch) in enumerate(tqdm(test_loader)):
+    #     t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=debug)
+        
+    #     # s = 1- torch.abs(t1)
+    #     # breakpoint()
+    #     lout = l01c(t1, t2, y_batch, s, cost)
+    #     a = lout['l01c loss']
+
+    #     # ls.append(loss.detach().numpy().item()/x_batch.shape[0])
+    #     l01cs_test.append(a.detach().item()/x_batch.shape[0])
+    #     df_testacc.append(lout['deferral accuracy'])
+    #     f1_testpen.append(lout['f1 selected penalty'])
+    #     f2_testpen.append(lout['f2 selected penalty'])
+    #     df_testrate.append(lout['rate of deferral'])
+
+    lout = l01c(t1_all, t2_all, y_all, s_all, cost)
+
+    a = lout['l01c loss']
+
+        # ls.append(loss.detach().numpy().item()/x_batch.shape[0])
+    l01cs_test = a.detach().item()/x_batch.shape[0]
+    df_testacc = torch.sum(lout['deferral accuracy'])/len(y_all)
+    f1_testpen= lout['f1 selected penalty']
+    f2_testpen = lout['f2 selected penalty']
+    df_testrate = torch.sum(lout['rate of deferral'])/len(y_all)
     
     training_log_dict['param_cs'] = cs
     training_log_dict['param_ds'] = ds
@@ -97,7 +126,9 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     training_log_dict['f1ls'] = f1ls
     training_log_dict['f2ls'] = f2ls
     training_log_dict['l01cs'] = l01cs
-
+    training_log_dict['test_avg_l01c'] = l01cs_test
+    training_log_dict['df_testacc'] = df_testacc
+    training_log_dict['df_testrate'] = df_testrate
 
     return two_stage_model, training_log_dict, 
 
@@ -128,7 +159,7 @@ def sep_hinge_experiment(train_loader, test_loader, cost, two_stage_model, train
     df_testacc = []
     df_testrate = []
     last_batch=None
-    for i in range(epoch):
+    for j in range(epoch):
         running_loss = 0
         debug=False
         
@@ -172,7 +203,7 @@ def sep_hinge_experiment(train_loader, test_loader, cost, two_stage_model, train
         last_batch=x_batch.clone()
         avg_loss = running_loss/ len(train_loader.dataset)
         track_epoch_loss.append(avg_loss)
-        print(f"Epoch {i+1}/{epoch}, Loss: {avg_loss}")
+        print(f"Epoch {j+1}/{epoch}, Loss: {avg_loss}")
         scheduler.step()
         # t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all = get_pred(two_stage_model, x_test ,z_test,y_test,E_max_py_xz, max_y_x, py_xz,cost, batch_size, test_n)
         
@@ -191,21 +222,38 @@ def sep_hinge_experiment(train_loader, test_loader, cost, two_stage_model, train
     plot_xzy(x_all, z_all, t1_all, prefix=str(cost)+'_t1_')
     plot_xzy(x_all, z_all, t2_all, prefix=str(cost)+'_t2_')
 
-    for i, (x_batch, z_batch, y_batch) in enumerate(tqdm(test_loader)):
-        t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=debug)
+    # for i, (x_batch, z_batch, y_batch) in enumerate(tqdm(test_loader)):
+    #     t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=debug)
         
-        s = 1- torch.abs(t1)
-        # breakpoint()
-        lout = l01c(t1, t2, y_batch, s, cost)
-        a = lout['l01c loss']
+    #     s = 1- torch.abs(t1)
+    #     # breakpoint()
+    #     lout = l01c(t1, t2, y_batch, s, cost)
+    #     a = lout['l01c loss']
+
+    #     # ls.append(loss.detach().numpy().item()/x_batch.shape[0])
+    #     l01cs_test.append(a.detach().item()/x_batch.shape[0])
+    #     df_testacc.append(lout['deferral accuracy'])
+    #     f1_testpen.append(lout['f1 selected penalty'])
+    #     f2_testpen.append(lout['f2 selected penalty'])
+    #     df_testrate.append(lout['rate of deferral'])
+
+
+
+    # t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all = get_pred(two_stage_model, test_loader,cost)
+    s_all = 1-torch.abs(t1_all)
+
+    lout = l01c(t1_all, t2_all, y_all, s_all, cost)
+
+
+
+    a = lout['l01c loss']
 
         # ls.append(loss.detach().numpy().item()/x_batch.shape[0])
-        l01cs_test.append(a.detach().item()/x_batch.shape[0])
-        df_testacc.append(lout['deferral accuracy'])
-        f1_testpen.append(lout['f1 selected penalty'])
-        f2_testpen.append(lout['f2 selected penalty'])
-        df_testrate.append(lout['rate of deferral'])
-      
+    l01cs_test = a.detach().item()/x_batch.shape[0]
+    df_testacc = torch.sum(lout['deferral accuracy'])/len(y_all)
+    f1_testpen= lout['f1 selected penalty']
+    f2_testpen = lout['f2 selected penalty']
+    df_testrate = torch.sum(lout['rate of deferral'])/len(y_all)
 
     
     training_log_dict['param_cs'] = cs
@@ -216,9 +264,9 @@ def sep_hinge_experiment(train_loader, test_loader, cost, two_stage_model, train
     training_log_dict['f1ls'] = f1ls
     training_log_dict['f2ls'] = f2ls
     training_log_dict['l01cs'] = l01cs
-    training_log_dict['test_avg_l01c'] = torch.mean(torch.stack(l01cs_test))
-    training_log_dict['df_testacc'] = torch.mean(torch.stack(df_testacc))
-    training_log_dict['df_testrate'] = torch.mean(torch.stack(df_testrate))
+    training_log_dict['test_avg_l01c'] = l01cs_test
+    training_log_dict['df_testacc'] = df_testacc
+    training_log_dict['df_testrate'] = df_testrate
     # training_
     return two_stage_model, training_log_dict, 
 
