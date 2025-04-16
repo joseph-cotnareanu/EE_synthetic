@@ -1,4 +1,5 @@
 from matplotlib import pyplot as plt
+from eval import l01c
 import os
 figure_path = 'figures'
 def storing_and_plotting(training_log_dict, prefix):
@@ -13,6 +14,8 @@ def storing_and_plotting(training_log_dict, prefix):
     param_ds = training_log_dict['param_ds']
     track_t1_acc = training_log_dict['track_t1_acc']
     track_t2_acc = training_log_dict['track_t2_acc']
+    l01cs = training_log_dict['l01cs']
+    # track_l01c = l01c()
     fig1, ax1 = plt.subplots()
     ax1.plot(param_cs)
     ax1.set_title('cplot')
@@ -41,25 +44,31 @@ def storing_and_plotting(training_log_dict, prefix):
     plt.savefig(os.path.join(figure_path, prefix+'acc.pdf'))
     plt.close()
 
-    fig, ax = plt.subplots(1, 3, figsize=(15, 5))
+    fig, ax = plt.subplots(2, 2, figsize=(10, 10))
     
-    ax[0].plot(ls, label='surrogate', marker='o')
-    ax[0].set_title('surrogate loss')
-    ax[0].set_xlabel('Epoch')
-    ax[0].set_ylabel('Accuracy')
-    ax[0].legend()
+    ax[0,0].plot(ls, label='surrogate', marker='o')
+    ax[0,0].set_title('surrogate loss')
+    ax[0,0].set_xlabel('Epoch')
+    ax[0,0].set_ylabel('Accuracy')
+    ax[0,0].legend()
     
-    ax[1].plot(f1ls, label='f1 loss', marker='o', color='r')
-    ax[1].set_title('f1 loss')
-    ax[1].set_xlabel('Epoch')
-    ax[1].set_ylabel('loss')
-    ax[1].legend()
+    ax[0,1].plot(l01cs, label='l01c on decision rule', marker='o')
+    ax[0,1].set_title('l01c on decision rule')
+    ax[0,1].set_xlabel('Epoch')
+    ax[0,1].set_ylabel('Accuracy')
+    ax[0,1].legend()
+
+    ax[1,0].plot(f1ls, label='f1 loss', marker='o', color='r')
+    ax[1,0].set_title('f1 loss')
+    ax[1,0].set_xlabel('Epoch')
+    ax[1,0].set_ylabel('loss')
+    ax[1,0].legend()
     
-    ax[2].plot(f2ls, label='f2 loss', marker='o', color='r')
-    ax[2].set_title('f2 loss')
-    ax[2].set_xlabel('Epoch')
-    ax[2].set_ylabel('loss')
-    ax[2].legend()
+    ax[1,1].plot(f2ls, label='f2 loss', marker='o', color='r')
+    ax[1,1].set_title('f2 loss')
+    ax[1,1].set_xlabel('Epoch')
+    ax[1,1].set_ylabel('loss')
+    ax[1,1].legend()
 
     plt.tight_layout()
     plt.savefig(os.path.join(figure_path,prefix+'losses.pdf'))

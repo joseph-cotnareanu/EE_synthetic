@@ -1,7 +1,7 @@
 
 from storing_plotting import storing_and_plotting
 from torch.utils.data import  DataLoader, TensorDataset
-from train import train_two_stage_experiment
+from train import train_two_stage_experiment, sep_hinge_experiment
 seed = 42  # or any number you choose
 
 # # Python random seed
@@ -48,6 +48,7 @@ if __name__ == '__main__':
     num_trials = 1
     two_stage_model_name = 'NN' # NN
     training_configs = {'epoch':50, 'lr':0.001, 'batch_size':512}
+    exp = 'both'
     for trial in range(num_trials):
         data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
         
@@ -55,8 +56,19 @@ if __name__ == '__main__':
         
         for cost in costs:
             two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=2, two_stage_model_name=two_stage_model_name)
-            two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs)
+            if exp == 'two_stage_experiment': 
+                two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs)
+                storing_and_plotting(training_log_dict, prefix='2s_exp' + str(cost)+'_')
+
+            elif exp == 'sep_hinge_experiment': 
+                two_stage_model, training_log_dict = sep_hinge_experiment(train_loader, test_loader, cost, two_stage_model, training_configs)
+                storing_and_plotting(training_log_dict, prefix='sep_exp' + str(cost)+'_')
+            elif exp == 'both':
+                two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs)
+                storing_and_plotting(training_log_dict, prefix='2s_exp' + str(cost)+'_')
+                two_stage_model, training_log_dict = sep_hinge_experiment(train_loader, test_loader, cost, two_stage_model, training_configs)
+                storing_and_plotting(training_log_dict, prefix='sep_exp' + str(cost)+'_')
+            print('========== done cost = ' + str(cost) + ' ==========')
 
 
-            storing_and_plotting(training_log_dict, prefix=str(cost)+'_')
 

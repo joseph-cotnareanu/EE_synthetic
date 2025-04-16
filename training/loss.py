@@ -1,5 +1,6 @@
 import torch
 from torch.nn.functional import relu
+from torch.nn import BCELoss
 from sklearn.metrics import hinge_loss
 from hinge_utils import one_hot_to_hinge_labels
 from torchmetrics import HingeLoss
@@ -25,3 +26,12 @@ def loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s):
     # return sum(surrogate_loss)
     if len(surrogate_loss.shape) == 0: return surrogate_loss, hinge_f1, hinge_f2
     else: return sum(surrogate_loss), torch.sum(hinge_f1), torch.sum(hinge_f2)
+
+def sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s):
+
+    y_hinge = one_hot_to_hinge_labels(y_batch)  
+
+    f1l = binary_hinge_loss(t1, y_hinge)
+    f2l = binary_hinge_loss(t2, y_hinge)
+
+    return torch.sum(f1l), torch.sum(f2l)
