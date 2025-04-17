@@ -59,11 +59,16 @@ if __name__ == '__main__':
     cost_plot_log_sep['test_avg_l01c'] = []
     cost_plot_log_sep['df_testacc'] = []
     cost_plot_log_sep['df_testrate'] = []
+    cost_plot_log_sep['f1 acc'] = []
+    cost_plot_log_sep['f2 acc'] = []
+
 
     cost_plot_log_2s = {}
     cost_plot_log_2s['test_avg_l01c'] = []
     cost_plot_log_2s['df_testacc'] = []
     cost_plot_log_2s['df_testrate'] = []
+    cost_plot_log_2s['f1 acc'] = []
+    cost_plot_log_2s['f2 acc'] = []
     for trial in range(num_trials):
         data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
         

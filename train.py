@@ -118,8 +118,8 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     f2_testpen = lout['f2 selected penalty']
     df_testrate = torch.sum(lout['rate of deferral'])/len(y_all)
 
-    f1_testacc = torch.mean(lout['f1 acc'])
-    f2_testacc = torch.mean(lout(['f2 acc']))
+    f1_testacc = torch.sum(lout['f1 acc'])/len(y_all)
+    f2_testacc = torch.sum(lout['f2 acc'])/len(y_all)
      
     
     training_log_dict['param_cs'] = cs
@@ -261,8 +261,8 @@ def sep_hinge_experiment(train_loader, test_loader, cost, two_stage_model, train
     f2_testpen = lout['f2 selected penalty']
     df_testrate = torch.sum(lout['rate of deferral'])/len(y_all)
     
-    f1_testacc = torch.mean(lout['f1 acc'])
-    f2_testacc = torch.mean(lout(['f2 acc']))
+    f1_testacc = torch.sum(lout['f1 acc'])/len(y_all)
+    f2_testacc = torch.sum(lout['f2 acc'])/len(y_all)
     
 
     training_log_dict['param_cs'] = cs
