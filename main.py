@@ -46,7 +46,8 @@ def data_dict_to_dataloader(data_dict):
 
 if __name__ == '__main__':
     # costs = [0.03, 0.05, 0.07] # between 0 and 0.1
-    costs = list(np.arange(0.01,0.25, 0.02))
+    costs = list(np.arange(0.0,0.06, 0.001))
+    # costs = [0.05]
     test_n = 32*1000
     train_n = 32*1000
     mc_posterior_n = 32*100
@@ -76,6 +77,9 @@ if __name__ == '__main__':
                 cost_plot_log_2s['test_avg_l01c'].append(training_log_dict['test_avg_l01c'])
                 cost_plot_log_2s['df_testacc'].append(training_log_dict['df_testacc'])
                 cost_plot_log_2s['df_testrate'].append(training_log_dict['df_testrate'])
+                cost_plot_log_2s['f1 acc'].append(training_log_dict['f1 acc'])
+                cost_plot_log_2s['f2 acc'].append(training_log_dict['f2 acc'])
+
 
                 storing_and_plotting(training_log_dict, prefix='2s_exp' + str(cost)+'_')
 
@@ -85,6 +89,8 @@ if __name__ == '__main__':
                 cost_plot_log_sep['test_avg_l01c'].append(training_log_dict['test_avg_l01c'])
                 cost_plot_log_sep['df_testacc'].append(training_log_dict['df_testacc'])
                 cost_plot_log_sep['df_testrate'].append(training_log_dict['df_testrate'])
+                cost_plot_log_sep['f1 acc'].append(training_log_dict['f1 acc'])
+                cost_plot_log_sep['f2 acc'].append(training_log_dict['f2 acc'])
 
                 storing_and_plotting(training_log_dict, prefix='sep_exp' + str(cost)+'_')
             elif exp == 'both':
@@ -93,6 +99,8 @@ if __name__ == '__main__':
                 cost_plot_log_2s['test_avg_l01c'].append(training_log_dict['test_avg_l01c'])
                 cost_plot_log_2s['df_testacc'].append(training_log_dict['df_testacc'])
                 cost_plot_log_2s['df_testrate'].append(training_log_dict['df_testrate'])
+                cost_plot_log_2s['f1 acc'].append(training_log_dict['f1 acc'])
+                cost_plot_log_2s['f2 acc'].append(training_log_dict['f2 acc'])
 
                 storing_and_plotting(training_log_dict, prefix='2s_exp' + str(cost)+'_')
 
@@ -101,30 +109,50 @@ if __name__ == '__main__':
                 cost_plot_log_sep['test_avg_l01c'].append(training_log_dict['test_avg_l01c'])
                 cost_plot_log_sep['df_testacc'].append(training_log_dict['df_testacc'])
                 cost_plot_log_sep['df_testrate'].append(training_log_dict['df_testrate'])
+                cost_plot_log_sep['f1 acc'].append(training_log_dict['f1 acc'])
+                cost_plot_log_sep['f2 acc'].append(training_log_dict['f2 acc'])
 
                 storing_and_plotting(training_log_dict, prefix='sep_exp' + str(cost)+'_')
             print('========== done cost = ' + str(cost) + ' ==========')
         # breakpoint()
-        fig, ax = plt.subplots(3, 1, figsize=(5,15))
-        ax[0].scatter(x=costs, y=cost_plot_log_2s['test_avg_l01c'], label='2-stage experiment')
-        ax[0].scatter(x=costs, y=cost_plot_log_sep['test_avg_l01c'], label='separate training experiment')
-        ax[0].set_title('average test-set l01c')
-        ax[0].set_ylabel('l01c')
-        ax[0].set_xlabel('cost')
-        ax[0].legend()
+        fig, ax = plt.subplots(3, 2, figsize=(10,15))
+        ax[0,0].scatter(x=costs, y=cost_plot_log_2s['test_avg_l01c'], label='2-stage experiment')
+        ax[0,0].scatter(x=costs, y=cost_plot_log_sep['test_avg_l01c'], label='separate training experiment')
+        ax[0,0].set_title('average test-set l01c')
+        ax[0,0].set_ylabel('l01c')
+        ax[0,0].set_xlabel('cost')
+        ax[0,0].legend()
 
-        ax[1].scatter(x=costs, y=cost_plot_log_2s['df_testacc'], label='2-stage')
-        ax[1].scatter(x=costs, y=cost_plot_log_sep['df_testacc'], label='seperate')
-        ax[1].set_title('average test-set deferral accuracy')
-        ax[1].set_ylabel('deferral accuracy')
-        ax[1].set_xlabel('cost')
-        ax[1].legend()
+        ax[1,0].scatter(x=costs, y=cost_plot_log_2s['df_testacc'], label='2-stage')
+        ax[1,0].scatter(x=costs, y=cost_plot_log_sep['df_testacc'], label='seperate')
+        ax[1,0].set_title('average test-set deferral accuracy')
+        ax[1,0].set_ylabel('deferral accuracy')
+        ax[1,0].set_xlabel('cost')
+        ax[1,0].legend()
 
-        ax[2].scatter(x=costs, y=cost_plot_log_2s['df_testrate'], label='2-stage')
-        ax[2].scatter(x=costs, y=cost_plot_log_sep['df_testrate'], label='seperate')
-        ax[2].set_title('average test-set deferral rate')
-        ax[2].set_ylabel('deferral rate')
-        ax[2].set_xlabel('cost')
+        ax[1,1].scatter(x=costs, y=cost_plot_log_2s['df_testrate'], label='2-stage')
+        ax[1,1].scatter(x=costs, y=cost_plot_log_sep['df_testrate'], label='seperate')
+        ax[1,1].set_title('average test-set deferral rate')
+        ax[1,1].set_ylabel('deferral rate')
+        ax[1,1].set_xlabel('cost')
+        ax[1,1].legend()
+
+        ax[2,0].scatter(x=costs, y=cost_plot_log_2s['f1 acc'], label='2-stage')
+        ax[2,0].scatter(x=costs, y=cost_plot_log_sep['f1 acc'], label='2-stage')
+        ax[2,0].set_title('f1 acc')
+        ax[2,0].set_ylabel('accuracy')
+        ax[2,0].set_xlabel('cost')
+        ax[2,0].legend()
+
+
+        ax[2,1].scatter(x=costs, y=cost_plot_log_2s['f2 acc'], label='2-stage')
+        ax[2,1].scatter(x=costs, y=cost_plot_log_sep['f2 acc'], label='2-stage')
+        ax[2,1].set_title('f2 acc')
+        ax[2,1].set_ylabel('accuracy')
+        ax[2,1].set_xlabel('cost')
+        ax[2,1].legend()
+
+
 
         plt.tight_layout
         plt.savefig('./figures/costfig.pdf')

@@ -15,15 +15,20 @@ def l01c(f1, f2, target, s,c):
     rd = torch.where(s > 0.5, 1, 0)
     rd_gt = torch.where(f1_d != target, torch.where(f2_d == target, 1, 0), 0)
     defer_acc = torch.where(rd == rd_gt, 1, 0)
+    f1_acc = 1-f1_pen
+    f2_acc = 1 - (f2_pen/(1+c))
     # breakpoint()
     return {
             'l01c loss' : torch.sum(f1_s_pen + f2_s_pen), 
             'f1 penalty' : f1_pen ,
             'f2 penalty' : f2_pen,
+            'f1 acc': f1_acc,
+            'f2 acc': f2_acc,
             'f1 selected penalty' : f1_s_pen,
             'f2 selected penalty' : f2_s_pen,
             'rate of deferral':torch.sum(rd),
             'gt rate of deferral': torch.sum(rd_gt),
             'deferral accuracy': defer_acc
+
             }
 

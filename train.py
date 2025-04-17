@@ -117,6 +117,10 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     f1_testpen= lout['f1 selected penalty']
     f2_testpen = lout['f2 selected penalty']
     df_testrate = torch.sum(lout['rate of deferral'])/len(y_all)
+
+    f1_testacc = torch.mean(lout['f1 acc'])
+    f2_testacc = torch.mean(lout(['f2 acc']))
+     
     
     training_log_dict['param_cs'] = cs
     training_log_dict['param_ds'] = ds
@@ -129,6 +133,8 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     training_log_dict['test_avg_l01c'] = l01cs_test
     training_log_dict['df_testacc'] = df_testacc
     training_log_dict['df_testrate'] = df_testrate
+    training_log_dict['f1 acc'] = f1_testacc
+    training_log_dict['f2 acc'] = f2_testacc
 
     return two_stage_model, training_log_dict, 
 
@@ -241,7 +247,7 @@ def sep_hinge_experiment(train_loader, test_loader, cost, two_stage_model, train
 
     # t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all = get_pred(two_stage_model, test_loader,cost)
     s_all = 1-torch.abs(t1_all)
-
+    # breakpoint()
     lout = l01c(t1_all, t2_all, y_all, s_all, cost)
 
 
@@ -254,8 +260,11 @@ def sep_hinge_experiment(train_loader, test_loader, cost, two_stage_model, train
     f1_testpen= lout['f1 selected penalty']
     f2_testpen = lout['f2 selected penalty']
     df_testrate = torch.sum(lout['rate of deferral'])/len(y_all)
-
     
+    f1_testacc = torch.mean(lout['f1 acc'])
+    f2_testacc = torch.mean(lout(['f2 acc']))
+    
+
     training_log_dict['param_cs'] = cs
     training_log_dict['param_ds'] = ds
     training_log_dict['track_t1_acc'] = track_t1_acc
@@ -267,6 +276,8 @@ def sep_hinge_experiment(train_loader, test_loader, cost, two_stage_model, train
     training_log_dict['test_avg_l01c'] = l01cs_test
     training_log_dict['df_testacc'] = df_testacc
     training_log_dict['df_testrate'] = df_testrate
+    training_log_dict['f1 acc'] = f1_testacc
+    training_log_dict['f2 acc'] = f2_testacc
     # training_
     return two_stage_model, training_log_dict, 
 
