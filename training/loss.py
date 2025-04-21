@@ -5,6 +5,8 @@ from sklearn.metrics import hinge_loss
 from eval_utils import one_hot_to_hinge_labels
 from torchmetrics import HingeLoss
 hinge=HingeLoss(task='binary')
+multi_class_hinge_loss = torch.nn.MultiMarginLoss(p=1, margin=0, weight=None, size_average=None, reduce=None, reduction='none')
+
 def binary_hinge_loss(t,y):
     """
     hinge loss: max(0,1-t*y)
@@ -53,3 +55,7 @@ def sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s):
     f2l = binary_hinge_loss(t2, y_hinge)
 
     return torch.sum(f1l), torch.sum(f2l)
+
+def multi_class_hinge_loss(t,y):
+    return multi_class_hinge_loss(t, y)
+    
