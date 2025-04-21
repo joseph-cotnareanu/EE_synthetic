@@ -2,7 +2,7 @@ import torch
 from torch.nn.functional import relu
 from torch.nn import BCELoss
 from sklearn.metrics import hinge_loss
-from hinge_utils import one_hot_to_hinge_labels
+from eval_utils import one_hot_to_hinge_labels
 from torchmetrics import HingeLoss
 hinge=HingeLoss(task='binary')
 def binary_hinge_loss(t,y):
@@ -15,6 +15,24 @@ def binary_hinge_loss(t,y):
     # hinge=HingeLoss(task='binary')
     # return hinge(t, torch.where(y==-1, 0, y))
 
+def binary_CE_loss(t,y):
+    """
+    cross entropy loss: t/2 + 0.5 
+    """
+    p_1 = t/2 + 0.5 
+    p = torch.concat((1-p_1, p_1), dim=1)
+    
+    return BCELoss()(p, y.to(torch.float32))
+
+def loss_CE_joint(x_batch, z_batch, y_batch, cost, t1, t2, s):
+    # y_batch to 1 -1 labels
+  
+    ce_f1 = binary_CE_loss(t1,y_batch) 
+    ce_f2 = binary_CE_loss(t2,y_batch) 
+    surrogate_loss = (1-s) * ce_f1 + s * (ce_f2 + cost)
+    # return sum(surrogate_loss)
+    if len(surrogate_loss.shape) == 0: return surrogate_loss, ce_f1, ce_f2
+    else: return sum(surrogate_loss), torch.sum(ce_f1), torch.sum(ce_f2)
 
 
 def loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s):
