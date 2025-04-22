@@ -59,6 +59,7 @@ def compute_gt_s(E_max_py_xz, max_y_x, c):
     """
     gt_s = (torch.tensor(max_y_x) < (torch.tensor(E_max_py_xz) - c)).float()
     return gt_s
+# def compute_gs_s_llm
 
 def compute_gt_f1_f2(test_py_xz, test_py_x):
     f1_star_y = (test_py_x >= 0.5).float()
@@ -77,46 +78,84 @@ def accuracy_hinge_model(y_pred, y_true):
 
 
 
-def get_pred(two_stage_model, test_loader, cost=None):
+def get_pred(two_stage_model, test_loader, data, cost=None):
     t1_list, t2_list, x_list, z_list, y_stack, s_stack, gt_s, gt_f1, gt_f2 = [], [], [], [], [], [], [], [], []
     
     with torch.no_grad():
-        for i, (x_batch, z_batch, y_batch, E_max_py_xz_batch, max_y_batch, test_py_xz, test_py_x) in enumerate(test_loader):
+        if data=='toy':
+            for i, (x_batch, z_batch, y_batch, E_max_py_xz_batch, max_y_batch, test_py_xz, test_py_x) in enumerate(test_loader):
+                
+                if cost is not None:
+                    
+                    gt_s_batch = compute_gt_s(E_max_py_xz_batch, max_y_batch, cost)
+                    gt_s.append(gt_s_batch)
+                
+                gt_f1_batch, gt_f2_batch = compute_gt_f1_f2(test_py_xz, test_py_x)
+                gt_f1.append(gt_f1_batch)
+                gt_f2.append(gt_f2_batch)
+                
+                t1, t2, s, _ = two_stage_model(x_batch, z_batch, debug=False)
+                
+                x_list.append(x_batch)
+                z_list.append(z_batch)
+                s_stack.append(s)
+                t1_list.append(t1)
+                t2_list.append(t2)
+                y_stack.append(y_batch)
+
+            x_all = torch.cat(x_list, dim=0)
+            s_all = torch.cat(s_stack, dim=0)
+            z_all = torch.cat(z_list, dim=0)
+            t1_all = torch.cat(t1_list, dim=0)
+            t2_all = torch.cat(t2_list, dim=0)
+            y_all = torch.cat(y_stack, dim=0)
+            gt_f1_all = torch.cat(gt_f1, dim=0)
+            gt_f2_all = torch.cat(gt_f2, dim=0)
+            if cost is not None:
+                gt_s_all = torch.cat(gt_s, dim=0)
+                return t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all, gt_f1_all, gt_f2_all
+            return t1_all, t2_all, y_all, x_all, z_all, s_all, gt_f1_all, gt_f2_all
+        elif data=='llm':
+            for i, (x_batch, z_batch, y_batch) in enumerate(test_loader):
+                
+                # if cost is not None:
+                    
+                #     # gt_s_batch = compute_gt_s(E_max_py_xz_batch, max_y_batch, cost)
+                #     gt_s.append(gt_s_batch)
+                
+                # gt_f1_batch, gt_f2_batch = compute_gt_f1_f2(test_py_xz, test_py_x)
+                # gt_f1.append(gt_f1_batch)
+                # gt_f2.append(gt_f2_batch)
+                
+                t1, t2, s, _ = two_stage_model(x_batch, z_batch, debug=False)
+                
+                x_list.append(x_batch)
+                z_list.append(z_batch)
+                s_stack.append(s)
+                t1_list.append(t1)
+                t2_list.append(t2)
+                y_stack.append(y_batch)
+
+            x_all = torch.cat(x_list, dim=0)
+            s_all = torch.cat(s_stack, dim=0)
+            z_all = torch.cat(z_list, dim=0)
+            t1_all = torch.cat(t1_list, dim=0)
+            t2_all = torch.cat(t2_list, dim=0)
+            y_all = torch.cat(y_stack, dim=0)
             
             if cost is not None:
-                
-                gt_s_batch = compute_gt_s(E_max_py_xz_batch, max_y_batch, cost)
-                gt_s.append(gt_s_batch)
+                return t1_all, t2_all, y_all, x_all, z_all, s_all
             
-            gt_f1_batch, gt_f2_batch = compute_gt_f1_f2(test_py_xz, test_py_x)
-            gt_f1.append(gt_f1_batch)
-            gt_f2.append(gt_f2_batch)
-            
-            t1, t2, s, _ = two_stage_model(x_batch, z_batch, debug=False)
-            
-            x_list.append(x_batch)
-            z_list.append(z_batch)
-            s_stack.append(s)
-            t1_list.append(t1)
-            t2_list.append(t2)
-            y_stack.append(y_batch)
-            
-        x_all = torch.cat(x_list, dim=0)
-        s_all = torch.cat(s_stack, dim=0)
-        z_all = torch.cat(z_list, dim=0)
-        t1_all = torch.cat(t1_list, dim=0)
-        t2_all = torch.cat(t2_list, dim=0)
-        y_all = torch.cat(y_stack, dim=0)
-        gt_f1_all = torch.cat(gt_f1, dim=0)
-        gt_f2_all = torch.cat(gt_f2, dim=0)
-        if cost is not None:
-            gt_s_all = torch.cat(gt_s, dim=0)
-            return t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all, gt_f1_all, gt_f2_all
-        return t1_all, t2_all, y_all, x_all, z_all, s_all, gt_f1_all, gt_f2_all
+            return t1_all, t2_all, y_all, x_all, z_all, s_all
+        
         
 
-def compute_accuracies_and_01c(two_stage_model, test_loader, c ):
-    t1_all, t2_all, y_all, x_all, z_all, s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader)
+def compute_accuracies_and_01c(two_stage_model, test_loader, c, data='toy'):
+    if data=='toy':
+        t1_all, t2_all, y_all, x_all, z_all, s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader, data)
+    elif data=='llm':
+        t1_all, t2_all, y_all, x_all, z_all, s_all = get_pred(two_stage_model, test_loader, data)
+
     f1_all = torch.where(t1_all >0, 1, 0)
     f2_all = torch.where(t2_all >0, 1, 0)
     test_01c = l01c(f1_all,f2_all,y_all[:,1], s_all, c)['l01c loss']

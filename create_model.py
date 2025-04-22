@@ -9,13 +9,13 @@ class NNTwoStageSeparate(torch.nn.Module):
         super(NNTwoStageSeparate, self).__init__()
         hidden_dim = 128
         self.param_tracking_dict = {}
-        self.y1_in = nn.Linear(1, hidden_dim)
+        self.y1_in = nn.Linear(x_dim, hidden_dim)
         self.y1_hid = nn.Linear(hidden_dim, hidden_dim)
         self.y1_out = nn.Linear(hidden_dim, 1)
-        self.y2_in = nn.Linear(1, hidden_dim)
+        self.y2_in = nn.Linear(z_dim + x_dim, hidden_dim)
         self.y2_hid = nn.Linear(hidden_dim, hidden_dim)
         self.y2_out = nn.Linear(hidden_dim, 1)
-        self.s_in = nn.Linear(1, hidden_dim)
+        self.s_in = nn.Linear(x_dim, hidden_dim)
         self.s_hid = nn.Linear(hidden_dim, hidden_dim)
         self.s_out = nn.Linear(hidden_dim, 1)
         
@@ -29,7 +29,7 @@ class NNTwoStageSeparate(torch.nn.Module):
       
         y1 = self.tanh(self.y1_out(self.relu(self.y1_hid(self.tanh(self.y1_in(x))))))
         # y2 = self.relu(self.y2_out(self.relu(self.y2_in(torch.cat((x,z), dim=-1)))))
-        y2 = self.tanh(self.y2_out(self.relu(self.y2_hid(self.relu(self.y2_in(x+z))))))
+        y2 = self.tanh(self.y2_out(self.relu(self.y2_hid(self.relu(self.y2_in(torch.concatenate((x,z), dim=-1)))))))
 
         s = self.sigmoid(self.s_out(self.relu(self.s_hid(self.relu(self.s_in(x))))))
         param_tracking_dict  = {'s':s}
