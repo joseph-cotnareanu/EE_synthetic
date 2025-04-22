@@ -87,11 +87,13 @@ def create_data(trial: int, train_n: int, test_n: int, mc_posterior_n: int):
     data_dict['test_n'] = test_n
 
     print('precomputing posteriors on the test test...')
-    E_max_py_xz, max_y_x, py_xz = precompute_posterior_and_store(
+    E_max_py_xz, max_y_x, py_xz, py_x = precompute_posterior_and_store(
         x_test, z_test, num_samples=mc_posterior_n)
     data_dict['test_E'] = E_max_py_xz
     data_dict['test_max'] = max_y_x
     data_dict['test_py_xz'] = py_xz
+    data_dict['test_py_x'] = py_x
+    
     return data_dict
 
 
@@ -129,6 +131,7 @@ def precompute_posterior_and_store(x_values, z_values, num_samples):
     E_max_py_xz = []
     max_y_x = []
     py_xz = []
+    py_x = []
     # compute the boundary
     for i in tqdm(range(len(x_values))):
         x = x_values[i]
@@ -138,6 +141,7 @@ def precompute_posterior_and_store(x_values, z_values, num_samples):
 
         # Compute the marginalized max_y p(y | x)
         prob_y_x = posterior_p_y_given_x(x, num_samples)
+        py_x.append(prob_y_x)
         max_prob = torch.max(prob_y_x, 1 - prob_y_x)
         xz_post = posterior_p_y_given_x_z(x, z_values[i])
 
@@ -145,4 +149,4 @@ def precompute_posterior_and_store(x_values, z_values, num_samples):
         max_y_x.append(max_prob)
         py_xz.append(xz_post)
 
-    return torch.tensor(E_max_py_xz), torch.tensor(max_y_x), torch.tensor(py_xz)
+    return torch.tensor(E_max_py_xz), torch.tensor(max_y_x), torch.tensor(py_xz), torch.tensor(py_x)
