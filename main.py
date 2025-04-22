@@ -34,14 +34,14 @@ def data_dict_to_dataloader(data_dict):
 
 if __name__ == '__main__':
    
-    costs = list(np.arange(0.01,0.09, 0.01))
-    #costs = [0.05]
+    #costs = list(np.arange(0.01,0.09, 0.01))
+    costs = [0.06]
     test_n = 32*10000
     train_n = 32*10000
     mc_posterior_n = 32*100
     num_trials = 1
     two_stage_model_name = 'NN' # NN
-    training_configs = {'epoch':50, 'lr':0.001, 'batch_size':512}
+    training_configs = {'epoch':10, 'lr':0.001, 'batch_size':512}
     
     exp = 'both'
     cost_plot_log_sep = {'name':'sep_hinge_experiment'}
@@ -63,8 +63,9 @@ if __name__ == '__main__':
         train_loader, test_loader = data_dict_to_dataloader(data_dict)
         
         for cost in tqdm(costs):
-            two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=2, two_stage_model_name=two_stage_model_name)
+            
             if exp == 'two_stage_experiment' or  exp == 'both': 
+                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=2, two_stage_model_name=two_stage_model_name)
                 training_configs['loss_type'] = 'hinge_surrogate'
                 two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs)
 
@@ -78,6 +79,7 @@ if __name__ == '__main__':
                 storing_and_plotting(training_log_dict, prefix='2s_exp' + str(cost)+'_')
 
             if exp == 'sep_hinge_experiment' or  exp == 'both': 
+                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=2, two_stage_model_name=two_stage_model_name)
                 training_configs['loss_type'] = 'separate'
                 two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs)
 

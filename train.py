@@ -34,13 +34,13 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     for j in tqdm(range(epoch)):
         running_loss = 0
         debug=False
-        if  j%5 == 0:
-            test_acc_t1, test_acc_t2, test_01c = compute_accuracies_and_01c(two_stage_model, test_loader, cost)
-            track_t1_acc.append(test_acc_t1)
-            track_t2_acc.append(test_acc_t2)
-            track_l01c.append(test_01c)
+        
         for i, (x_batch, z_batch, y_batch) in enumerate(train_loader):
-            
+            if  i%32 == 0:
+                test_acc_t1, test_acc_t2, test_01c = compute_accuracies_and_01c(two_stage_model, test_loader, cost)
+                track_t1_acc.append(test_acc_t1)
+                track_t2_acc.append(test_acc_t2)
+                track_l01c.append(test_01c)
            
             optimizer.zero_grad()
             t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=debug)
