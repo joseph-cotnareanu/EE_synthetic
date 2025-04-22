@@ -143,7 +143,7 @@ if __name__ == '__main__':
         ax[1,1].legend()
 
         ax[2,0].scatter(x=costs, y=cost_plot_log_2s['f1 acc'], label='2-stage')
-        ax[2,0].scatter(x=costs, y=cost_plot_log_sep['f1 acc'], label='2-stage')
+        ax[2,0].scatter(x=costs, y=cost_plot_log_sep['f1 acc'], label='separate')
         ax[2,0].set_title('f1 acc')
         ax[2,0].set_ylabel('accuracy')
         ax[2,0].set_xlabel('cost')
@@ -151,7 +151,7 @@ if __name__ == '__main__':
 
 
         ax[2,1].scatter(x=costs, y=cost_plot_log_2s['f2 acc'], label='2-stage')
-        ax[2,1].scatter(x=costs, y=cost_plot_log_sep['f2 acc'], label='2-stage')
+        ax[2,1].scatter(x=costs, y=cost_plot_log_sep['f2 acc'], label='separate')
         ax[2,1].set_title('f2 acc')
         ax[2,1].set_ylabel('accuracy')
         ax[2,1].set_xlabel('cost')
