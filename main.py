@@ -1,5 +1,5 @@
 
-from storing_plotting import plotting_multi_costs, storing_and_plotting
+from storing_plotting import only_storing_plotting_latter, plotting_multi_costs, storing_and_plotting
 from torch.utils.data import  DataLoader, TensorDataset
 from train import train_two_stage_experiment
 from matplotlib import pyplot as plt
@@ -35,13 +35,13 @@ def data_dict_to_dataloader(data_dict):
 if __name__ == '__main__':
    
     #costs = list(np.arange(0.01,0.09, 0.01))
-    costs = [0.06]
+    costs = [0.05, 0.06]
     test_n = 32*10000
     train_n = 32*10000
     mc_posterior_n = 32*100
     num_trials = 1
     two_stage_model_name = 'NN' # NN
-    training_configs = {'epoch':10, 'lr':0.001, 'batch_size':512}
+    training_configs = {'epoch':5, 'lr':0.001, 'batch_size':512}
     
     exp = 'both'
     cost_plot_log_sep = {'name':'sep_hinge_experiment'}
@@ -76,7 +76,7 @@ if __name__ == '__main__':
                 cost_plot_log_2s['f2 acc'].append(training_log_dict['f2 acc'])
 
 
-                storing_and_plotting(training_log_dict, prefix='2s_exp' + str(cost)+'_')
+                only_storing_plotting_latter(training_log_dict, prefix='2s_exp' + str(cost)+'_')
 
             if exp == 'sep_hinge_experiment' or  exp == 'both': 
                 two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=2, two_stage_model_name=two_stage_model_name)
@@ -89,6 +89,6 @@ if __name__ == '__main__':
                 cost_plot_log_sep['f1 acc'].append(training_log_dict['f1 acc'])
                 cost_plot_log_sep['f2 acc'].append(training_log_dict['f2 acc'])
 
-                storing_and_plotting(training_log_dict, prefix='sep_exp' + str(cost)+'_')
+                only_storing_plotting_latter(training_log_dict, prefix='sep_exp' + str(cost)+'_')
            
-        plotting_multi_costs(costs, baseline_dicts)
+        only_storing_plotting_latter(baseline_dicts, prefix='baseline_' + str(costs) + '_')

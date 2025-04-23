@@ -1,7 +1,17 @@
 from matplotlib import pyplot as plt
 
 import os
+import pickle
 figure_path = 'figures'
+
+def only_storing_plotting_latter(training_log_dict, prefix):
+    """
+    This function is used to store the training log dictionary and plot the results.
+    """
+    with open(os.path.join(figure_path, f"{prefix}_training_result.pkl"), "wb") as f:
+        pickle.dump(training_log_dict, f)
+    
+    
 def storing_and_plotting(training_log_dict, prefix):
 
    
@@ -79,7 +89,7 @@ def storing_and_plotting(training_log_dict, prefix):
     plt.tight_layout()
     plt.savefig(os.path.join(figure_path,prefix+'losses.pdf'))
     plt.close()
-    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    fig, ax = plt.subplots(1, 1, figsize=(4, 4))
     plt.plot(test_01c, label=r'$R_{01c}(f)$', marker='o')
     plt.axhline(y=optimal_l01c, color='r', linestyle='--', linewidth=2, label=r'$R^*_{01c}$')
     plt.xlabel('Epoch')
