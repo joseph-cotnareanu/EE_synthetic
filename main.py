@@ -35,7 +35,7 @@ def data_dict_to_dataloader(data_dict):
 if __name__ == '__main__':
    
     #costs = list(np.arange(0.01,0.09, 0.01))
-    costs = [0.05, 0.06]
+    costs = [0.07, 0.03]
     test_n = 32*10000
     train_n = 32*10000
     mc_posterior_n = 32*100
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     two_stage_model_name = 'NN' # NN
     training_configs = {'epoch':5, 'lr':0.001, 'batch_size':512}
     
-    exp = 'both'
+    exp = 'two_stage_experiment'
     cost_plot_log_sep = {'name':'sep_hinge_experiment'}
     cost_plot_log_2s = {'name':'two_stage_experiment'}
 

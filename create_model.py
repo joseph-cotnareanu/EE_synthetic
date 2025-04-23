@@ -67,7 +67,7 @@ class NNTwoStageSeparateLLM(torch.nn.Module):
         self.y1_out = nn.Linear(hidden_dim, num_classes)
         self.y2_in = nn.Linear(z_dim + x_dim, hidden_dim)
         # self.y2_hid = nn.Linear(hidden_dim, hidden_dim)
-        self.y2_out = nn.Linear(hidden_dim, num_classes)
+        self.y2_out = nn.Linear(hidden_dim, num_classes-1)
         self.s_in = nn.Linear(x_dim, hidden_dim)
         self.s_hid = nn.Linear(hidden_dim, hidden_dim)
         self.s_out = nn.Linear(hidden_dim, 1)

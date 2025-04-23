@@ -5,7 +5,7 @@ from sklearn.metrics import hinge_loss
 from eval_utils import one_hot_to_hinge_labels
 from torchmetrics import HingeLoss
 hinge=HingeLoss(task='binary')
-multi_class_hinge_loss = torch.nn.MultiMarginLoss(p=1, margin=0, weight=None, size_average=None, reduce=None)
+multi_class_hinge_loss = torch.nn.MultiMarginLoss(p=1, margin=1, weight=None, size_average=None, reduce=None)
 
 def binary_hinge_loss(t,y):
     """
