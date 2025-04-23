@@ -124,7 +124,7 @@ def data_dict_to_dataloader():
     
     # test_dataset = TensorDataset(x_test, z_test, y_test,E_max_py_xz, max_y_x, py_xz, py_x)
     test_dataset = TensorDataset(x_test, z_test, y_test)
-    test_loader = DataLoader(test_dataset, shuffle=False)
+    test_loader = DataLoader(test_dataset,batch_size=len(test_dataset), shuffle=False)
 
     val_dataset = TensorDataset(x_val, z_val, y_val)
     val_loader = DataLoader(val_dataset, shuffle=False)
@@ -137,7 +137,7 @@ def data_dict_to_dataloader():
 if __name__ == '__main__':
    
     # costs = list(np.arange(0.01,0.09, 0.01))
-    costs = list(np.arange(0.001, 0.01, 0.001))
+    costs = list(np.arange(0.001, 0.01, 0.002))
     # costs = [0.001, 0.01, 0.1,0.5]
     #costs = [0.05]
     test_n = 32*10000
@@ -147,15 +147,15 @@ if __name__ == '__main__':
     two_stage_model_name = 'NN' # NN
     training_configs = {'epoch':50, 'lr':0.0001, 'batch_size':32, 'data': 'llm', 'nlayers': 3} #data: llm or toy
     
-    # exp = 'two_stage_experiment'
-    exp = 'sep_hinge_experiment'
+    exp = 'two_stage_experiment'
+    # exp = 'sep_hinge_experiment'
     cost_plot_log_sep = {'name':'sep_hinge_experiment'}
     cost_plot_log_2s = {'name':'two_stage_experiment'}
 
     
-    # baseline_dicts = [cost_plot_log_2s, cost_plot_log_sep]
+    baseline_dicts = [cost_plot_log_2s, cost_plot_log_sep]
     # baseline_dicts = [cost_plot_log_2s]
-    baseline_dicts = [cost_plot_log_sep]
+    # baseline_dicts = [cost_plot_log_sep]
     
     for base_dict in baseline_dicts:
         base_dict['test_avg_l01c'] = []
@@ -165,12 +165,12 @@ if __name__ == '__main__':
         base_dict['f2 acc'] = []
     
     for trial in range(num_trials):
-        data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
+        # data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
         
         train_loader, val_loader, test_loader, xdim, zdim = data_dict_to_dataloader()
         
         for cost in tqdm(costs):
-            two_stage_model = create_llm_model(x_dim=xdim, z_dim=zdim, nlayers=training_configs['nlayers'], num_classes=5, hidden_dim=1024, two_stage_model_name=two_stage_model_name)
+            two_stage_model = create_llm_model(x_dim=xdim, z_dim=zdim, nlayers=training_configs['nlayers'], num_classes=5, hidden_dim=16, two_stage_model_name=two_stage_model_name)
             if exp == 'two_stage_experiment' or  exp == 'both': 
                 training_configs['loss_type'] = 'hinge_surrogate'
                 two_stage_model, training_log_dict = train_llm(train_loader, test_loader, cost, two_stage_model, training_configs)

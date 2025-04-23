@@ -63,7 +63,10 @@ def multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s):
     y_batch = torch.max(y_batch, dim=-1).indices
     hinge_f1 = mc_hinge(t1,y_batch) 
     hinge_f2 = mc_hinge(t2,y_batch) 
+    # breakpoint()
     surrogate_loss = (1-s) * hinge_f1 + s * (hinge_f2 + cost)
+    # surrogate_loss = (1-s) * hinge_f1 + s * (hinge_f2)
+
     # return sum(surrogate_loss)
     if len(surrogate_loss.shape) == 0: return surrogate_loss, hinge_f1, hinge_f2
     else: return sum(surrogate_loss), torch.sum(hinge_f1), torch.sum(hinge_f2)

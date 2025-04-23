@@ -50,6 +50,7 @@ def l01c_multi(f1, f2, target, s,c):
     # f2 = f2.reshape(target.shape).to(torch.float)
     # s = s.reshape(target.shape).to(torch.float)
     # target = target.to(torch.float)
+    # breakpoint()
     target = target.max(dim=-1).indices
     f1_pen = torch.where(f1 != target, 1.0, 0.0)
     f1_s_pen = torch.where(s <= 0.5, f1_pen, 0.0)

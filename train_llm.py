@@ -63,8 +63,9 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
            
             optimizer.zero_grad()
             t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=debug)
-            t1 = (t1 + 1.0)/2.0
-            t2 = (t2 + 1.0)/2.0
+            # breakpoint()
+            # t1 = (t1 + 1.0)/2.0
+            # t2 = (t2 + 1.0)/2.0
             # breakpoint()
             if 'c' in param_dict:
 
@@ -76,16 +77,18 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
                 loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
 
                 loss = loss_f1 + loss_f2
-                s = 1- torch.abs(t1)
+                # s = 1- torch.abs(t1)
+                s = 1- torch.nn.Softmax(dim=-1)(t1).max(dim=-1).values
+                # breakpoint()
             elif loss_type == 'hinge_surrogate':
                 loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
             f1ls.append(loss_f1.detach().numpy().item()/x_batch.shape[0])
             f2ls.append(loss_f2.detach().numpy().item()/x_batch.shape[0])
             # breakpoint()
             ls.append(loss.detach().numpy().item()/x_batch.shape[0])
-            f1 = torch.where(t1 >0, 1, 0)
-            f2 = torch.where(t2 >0, 1, 0)
-            a = l01c_multi(f1, f2, y_batch[:,1], s, cost)['l01c loss']
+            f1 = torch.max(t1, dim=-1).indices
+            f2 = torch.max(t2 , dim=-1).indices
+            a = l01c_multi(f1, f2, y_batch, s, cost)['l01c loss']
             # ls.append(loss.detach().numpy().item()/x_batch.shape[0])
             l01cs.append(a.detach().numpy().item())
             loss.backward()

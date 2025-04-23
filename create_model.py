@@ -72,6 +72,7 @@ class NNTwoStageSeparateLLM(torch.nn.Module):
         self.s_hid = nn.Linear(hidden_dim, hidden_dim)
         self.s_out = nn.Linear(hidden_dim, 1)
         
+        
  
         
     def forward(self, x,z, debug):
@@ -88,15 +89,17 @@ class NNTwoStageSeparateLLM(torch.nn.Module):
         y2 = self.y2_hid(y2)
         # y1 = self.softmax(self.y1_out(y1))
         # y2 = self.softmax(self.y2_out(y2))
-        y1 = self.y1_out(y1)
-        y2 = self.y2_out(y2)
+        y1 =self.tanh(self.y1_out(y1))
+        y2 = self.tanh(self.y2_out(y2))
         s = self.sigmoid(self.s_out(s))
+        # breakpoint()
         # y1 = self.sigmoid(self.y1_out(self.relu(self.y1_hid(self.tanh(self.y1_in(x))))))
         # # y2 = self.relu(self.y2_out(self.relu(self.y2_in(torch.cat((x,z), dim=-1)))))
         # y2 = self.sigmoid(self.y2_out(self.relu(self.y2_hid(self.relu(self.y2_in(torch.concatenate((x,z), dim=-1)))))))
 
         # s = self.sigmoid(self.s_out(self.relu(self.s_hid(self.relu(self.s_in(x))))))
         param_tracking_dict  = {'s':s}
+        # breakpoint()
         return y1, y2, s, param_tracking_dict
 
 class BasicTwoStageSeparate(torch.nn.Module):
