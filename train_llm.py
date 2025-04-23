@@ -72,7 +72,9 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
                 ds.append(param_dict['d'].detach().numpy().item())
             debug=False
             if loss_type == 'separate':
-                loss_f1, loss_f2 = sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s)
+                # loss_f1, loss_f2 = sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s)
+                loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
+
                 loss = loss_f1 + loss_f2
                 s = 1- torch.abs(t1)
             elif loss_type == 'hinge_surrogate':

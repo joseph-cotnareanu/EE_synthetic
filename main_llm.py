@@ -147,13 +147,15 @@ if __name__ == '__main__':
     two_stage_model_name = 'NN' # NN
     training_configs = {'epoch':50, 'lr':0.0001, 'batch_size':32, 'data': 'llm', 'nlayers': 3} #data: llm or toy
     
-    exp = 'two_stage_experiment'
+    # exp = 'two_stage_experiment'
+    exp = 'sep_hinge_experiment'
     cost_plot_log_sep = {'name':'sep_hinge_experiment'}
     cost_plot_log_2s = {'name':'two_stage_experiment'}
 
     
     # baseline_dicts = [cost_plot_log_2s, cost_plot_log_sep]
-    baseline_dicts = [cost_plot_log_2s]
+    # baseline_dicts = [cost_plot_log_2s]
+    baseline_dicts = [cost_plot_log_sep]
     
     for base_dict in baseline_dicts:
         base_dict['test_avg_l01c'] = []
