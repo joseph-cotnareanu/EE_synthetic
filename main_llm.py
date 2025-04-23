@@ -8,10 +8,10 @@ import numpy as np
 import os
 from tqdm import tqdm
 import torch
-seed = 42  # or any number you choose
+# seed = 42  # or any number you choose
 
     
-from create_model import create_two_stage_model
+from create_model import create_two_stage_model, create_llm_model
 from generate_data import load_data
 
 def data_dict_to_dataloader():
@@ -129,27 +129,31 @@ def data_dict_to_dataloader():
     val_dataset = TensorDataset(x_val, z_val, y_val)
     val_loader = DataLoader(val_dataset, shuffle=False)
 
+    print('train balance:', np.unique(y_train.max(dim=-1).indices, return_counts=True)[1]/len(y_train))
     # Create DataLoader with shuffling
     # test_loader = DataLoader(test_dataset, batch_size=training_configs['batch_size'], shuffle=False)
     return train_loader, val_loader, test_loader, xdim, zdim
 
 if __name__ == '__main__':
    
-    costs = list(np.arange(0.01,0.09, 0.01))
+    # costs = list(np.arange(0.01,0.09, 0.01))
+    costs = list(np.arange(0.001, 0.01, 0.001))
+    # costs = [0.001, 0.01, 0.1,0.5]
     #costs = [0.05]
     test_n = 32*10000
     train_n = 32*10000
     mc_posterior_n = 32*100
     num_trials = 1
     two_stage_model_name = 'NN' # NN
-    training_configs = {'epoch':50, 'lr':0.001, 'batch_size':512, 'data': 'llm'} #data: llm or toy
+    training_configs = {'epoch':50, 'lr':0.0001, 'batch_size':32, 'data': 'llm', 'nlayers': 3} #data: llm or toy
     
-    exp = 'both'
+    exp = 'two_stage_experiment'
     cost_plot_log_sep = {'name':'sep_hinge_experiment'}
     cost_plot_log_2s = {'name':'two_stage_experiment'}
 
     
-    baseline_dicts = [cost_plot_log_2s, cost_plot_log_sep]
+    # baseline_dicts = [cost_plot_log_2s, cost_plot_log_sep]
+    baseline_dicts = [cost_plot_log_2s]
     
     for base_dict in baseline_dicts:
         base_dict['test_avg_l01c'] = []
@@ -164,7 +168,7 @@ if __name__ == '__main__':
         train_loader, val_loader, test_loader, xdim, zdim = data_dict_to_dataloader()
         
         for cost in tqdm(costs):
-            two_stage_model = create_two_stage_model(x_dim=xdim, z_dim=zdim, num_classes=5, two_stage_model_name=two_stage_model_name)
+            two_stage_model = create_llm_model(x_dim=xdim, z_dim=zdim, nlayers=training_configs['nlayers'], num_classes=5, hidden_dim=1024, two_stage_model_name=two_stage_model_name)
             if exp == 'two_stage_experiment' or  exp == 'both': 
                 training_configs['loss_type'] = 'hinge_surrogate'
                 two_stage_model, training_log_dict = train_llm(train_loader, test_loader, cost, two_stage_model, training_configs)
@@ -176,7 +180,7 @@ if __name__ == '__main__':
                 cost_plot_log_2s['f2 acc'].append(training_log_dict['f2 acc'])
 
 
-                storing_and_plotting(training_log_dict, prefix='2s_exp' + str(cost)+'_')
+                storing_and_plotting(training_log_dict, prefix='llm_2s_exp' + str(cost)+'_')
 
             if exp == 'sep_hinge_experiment' or  exp == 'both': 
                 training_configs['loss_type'] = 'separate'

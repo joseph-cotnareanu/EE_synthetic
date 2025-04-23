@@ -14,10 +14,11 @@ def storing_and_plotting(training_log_dict, prefix):
     param_ds = training_log_dict['param_ds']
     track_t1_acc = training_log_dict['track_t1_acc']
     track_t2_acc = training_log_dict['track_t2_acc']
-    l01cs = training_log_dict['l01cs']
+    # l01cs = training_log_dict['l01cs']
     test_01c = training_log_dict['track_01c']
-    optimal_l01c = training_log_dict['optimal_l01c']
-    # track_l01c = l01c()
+    if 'optimal_lo1c' in training_log_dict.keys(): 
+        optimal_l01c = training_log_dict['optimal_l01c']
+    # track_l01c = training_log_dict['track_01c']
     # fig1, ax1 = plt.subplots()
     # ax1.plot(param_cs)
     # ax1.set_title('cplot')
@@ -33,7 +34,7 @@ def storing_and_plotting(training_log_dict, prefix):
 
 
     fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-    
+    # breakpoint()
     ax[0].plot(track_t1_acc, label='Accuracy 1', marker='o')
     ax[0].set_title('f1')
     ax[0].set_xlabel('Epoch')
@@ -58,7 +59,7 @@ def storing_and_plotting(training_log_dict, prefix):
     ax[0,0].set_ylabel('Accuracy')
     ax[0,0].legend()
     
-    ax[0,1].plot(l01cs, label='l01c on decision rule', marker='o')
+    ax[0,1].plot(test_01c, label='l01c on decision rule', marker='o')
     ax[0,1].set_title('l01c on decision rule')
     ax[0,1].set_xlabel('Epoch')
     ax[0,1].set_ylabel('Accuracy')
@@ -79,15 +80,18 @@ def storing_and_plotting(training_log_dict, prefix):
     plt.tight_layout()
     plt.savefig(os.path.join(figure_path,prefix+'losses.pdf'))
     plt.close()
-    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    plt.plot(test_01c, label=r'$R_{01c}(f)$', marker='o')
-    plt.axhline(y=optimal_l01c, color='r', linestyle='--', linewidth=2, label=r'$R^*_{01c}$')
-    plt.xlabel('Epoch')
-    plt.ylabel(r'$R_{01c}(f)$')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(os.path.join(figure_path, prefix+'R01c.pdf'))
-    plt.close()
+
+    if 'optimal_lo1c' in training_log_dict.keys(): 
+
+        fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+        plt.plot(test_01c, label=r'$R_{01c}(f)$', marker='o')
+        plt.axhline(y=optimal_l01c, color='r', linestyle='--', linewidth=2, label=r'$R^*_{01c}$')
+        plt.xlabel('Epoch')
+        plt.ylabel(r'$R_{01c}(f)$')
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(os.path.join(figure_path, prefix+'R01c.pdf'))
+        plt.close()
 
 def plot_xzy(x,z,y, prefix):
     num_points_max = 5000
@@ -104,9 +108,12 @@ def plot_xzy(x,z,y, prefix):
 def plotting_multi_costs(costs, baseline_dicts):
     
         # breakpoint()
+        # breakpoint()
         fig, ax = plt.subplots(3, 2, figsize=(10,15))
         for base_dict in baseline_dicts:
-            ax[0,0].scatter(x=costs, y=base_dict['test_avg_l01c'], label=base_dict['name'])
+            try:
+                ax[0,0].scatter(x=costs, y=base_dict['test_avg_l01c'], label=base_dict['name'])
+            except: breakpoint()
         
         ax[0,0].set_title('average test-set l01c')
         ax[0,0].set_ylabel('l01c')

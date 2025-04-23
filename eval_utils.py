@@ -38,6 +38,43 @@ def l01c(f1, f2, target, s,c):
 
             }
 
+def l01c_multi(f1, f2, target, s,c):
+    """
+    f1 shoul dbe 0-1 labels
+    f2 should be 0-1 labels
+    target should be 0-1 labels
+    s should be between 0 and 1
+    """
+    # ensure that they gave the same shape
+    # f1 = f1.reshape(target.shape).to(torch.float)
+    # f2 = f2.reshape(target.shape).to(torch.float)
+    # s = s.reshape(target.shape).to(torch.float)
+    # target = target.to(torch.float)
+    target = target.max(dim=-1).indices
+    f1_pen = torch.where(f1 != target, 1.0, 0.0)
+    f1_s_pen = torch.where(s <= 0.5, f1_pen, 0.0)
+    f2_pen = torch.where(f2 != target, 1.0, 0.0)
+    f2_s_pen = torch.where(s > 0.5, f2_pen + c, 0.0)
+    rd = torch.where(s > 0.5, 1.0, 0.0)
+    rd_gt = torch.where(f1 != target, torch.where(f2 == target, 1, 0), 0.0)
+    defer_acc = torch.where(rd == rd_gt, 1.0, 0.0)
+    f1_acc = 1-f1_pen
+    f2_acc = 1 - (f2_pen/(1+c))
+    # breakpoint()
+    return {
+            'l01c loss' : torch.mean(f1_s_pen + f2_s_pen), 
+            'f1 penalty' : f1_pen ,
+            'f2 penalty' : f2_pen,
+            'f1 acc': f1_acc,
+            'f2 acc': f2_acc,
+            'f1 selected penalty' : f1_s_pen,
+            'f2 selected penalty' : f2_s_pen,
+            'rate of deferral':torch.sum(rd),
+            'gt rate of deferral': torch.sum(rd_gt),
+            'deferral accuracy': defer_acc
+
+            }
+
 def one_hot_to_hinge_labels(y_one_hot):
     """
     y = [[0,1],[1,0],[0,1], ....]
@@ -156,8 +193,17 @@ def compute_accuracies_and_01c(two_stage_model, test_loader, c, data='toy'):
     elif data=='llm':
         t1_all, t2_all, y_all, x_all, z_all, s_all = get_pred(two_stage_model, test_loader, data)
 
-    f1_all = torch.where(t1_all >0, 1, 0)
-    f2_all = torch.where(t2_all >0, 1, 0)
-    test_01c = l01c(f1_all,f2_all,y_all[:,1], s_all, c)['l01c loss']
-    y_hinge = one_hot_to_hinge_labels(y_all)
-    return accuracy_hinge_model(t1_all, y_hinge), accuracy_hinge_model(t2_all, y_hinge), test_01c.item()
+    
+    # berakpoint()
+    # breakpoint()
+    if len(y_all[0]) ==5:
+        f1_all = torch.max(t1_all, dim=-1).indices
+        f2_all = torch.max(t2_all , dim=-1).indices
+        test_01c = l01c_multi(f1_all, f2_all, y_all, s_all, c)['l01c loss']
+        
+    else: 
+        f1_all = torch.where(t1_all >0, 1, 0)
+        f2_all = torch.where(t2_all >0, 1, 0)
+        test_01c = l01c(f1_all,f2_all,y_all[:,1], s_all, c)['l01c loss']
+        y_hinge = one_hot_to_hinge_labels(y_all)
+        return accuracy_hinge_model(t1_all, y_hinge), accuracy_hinge_model(t2_all, y_hinge), test_01c.item()
