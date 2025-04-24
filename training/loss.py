@@ -5,7 +5,7 @@ from sklearn.metrics import hinge_loss
 from eval_utils import one_hot_to_hinge_labels
 from torchmetrics import HingeLoss
 hinge=HingeLoss(task='binary')
-multi_class_hinge_loss = torch.nn.MultiMarginLoss(p=1, margin=0, weight=None, size_average=None, reduce=None)
+multi_class_hinge_loss = torch.nn.MultiMarginLoss(p=1, margin=1, weight=None, size_average=None, reduction='none', reduce=None)
 
 def binary_hinge_loss(t,y):
     """
@@ -58,15 +58,31 @@ def sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s):
 
 def mc_hinge(t,y):
     return multi_class_hinge_loss(t, y)
+def correct_mc_hinge(t, y):
+    # breakpoint()
+    t = t +  1.0/(float(len(y[0])-1))
+    # t = t.max(-1)
+    t = torch.nn.functional.relu(t)
+    # # mask = torch.ones_like(t)
+    mask = y*-1 + 1
+
+    t = t*mask
+
+    return t.sum(dim=-1)[:, None]
     
 def multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s):
-    y_batch = torch.max(y_batch, dim=-1).indices
-    hinge_f1 = mc_hinge(t1,y_batch) 
-    hinge_f2 = mc_hinge(t2,y_batch) 
+    # y_batch = torch.max(y_batch, dim=-1).indices
+    # hinge_f1 = mc_hinge(t1,y_batch) 
+    # hinge_f2 = mc_hinge(t2,y_batch) 
     # breakpoint()
-    surrogate_loss = (1-s) * hinge_f1 + s * (hinge_f2 + cost)
+    hinge_f1 = correct_mc_hinge(t1,y_batch) 
+    hinge_f2 = correct_mc_hinge(t2,y_batch) 
+    surrogate_loss = (1-s) * hinge_f1 + s * (hinge_f2 + cost*4)
+    # breakpoint()
+    # breakpoint()
+    # breakpoint()
     # surrogate_loss = (1-s) * hinge_f1 + s * (hinge_f2)
-
+    # breakpoint()
     # return sum(surrogate_loss)
     if len(surrogate_loss.shape) == 0: return surrogate_loss, hinge_f1, hinge_f2
     else: return sum(surrogate_loss), torch.sum(hinge_f1), torch.sum(hinge_f2)

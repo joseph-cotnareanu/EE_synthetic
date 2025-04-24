@@ -7,20 +7,23 @@ from training.loss import loss_hinge_joint, sep_hinge, loss_CE_joint, multi_clas
 
 
 def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs):
-    
+    torch.autograd.set_detect_anomaly(True)
     epoch = training_configs['epoch']
     batch_size = training_configs['batch_size']
     lr = training_configs['lr']
     loss_type = training_configs['loss_type']
-    
+    warmup = training_configs['warmup']
     optimizer = torch.optim.Adam(two_stage_model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95)
-
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1.1)
+    es_loss = torch.inf
+    patience = training_configs['patience']
+    patience_count = 0
     track_batch_loss = []
     track_epoch_loss = []
     track_t1_acc = []
     track_t2_acc = []
     track_l01c = []
+    track_df = []
     training_log_dict = {}
     cs = []
     ds = []
@@ -35,29 +38,11 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     for j in tqdm(range(epoch)):
         running_loss = 0
         debug=False
-        if  j%1 == 0:
-            # test_acc_t1, test_acc_t2, test_01c = compute_accuracies_and_01c(two_stage_model, test_loader, cost, data='llm')
-            t1_all, t2_all, y_all, x_all, z_all, s_all= get_pred(two_stage_model, test_loader, 'llm', cost)
-            f1_all = torch.max(t1_all, dim=-1).indices
-            f2_all = torch.max(t2_all , dim=-1).indices
-            lout = l01c_multi(f1_all, f2_all, y_all, s_all, cost)
-
-
-            l01cs_test =lout['l01c loss'].detach().item()
-            df_testacc = torch.sum(lout['deferral accuracy'])/len(y_all)
-            f1_testpen= lout['f1 selected penalty']
-            f2_testpen = lout['f2 selected penalty']
-            df_testrate = torch.sum(lout['rate of deferral'])/len(y_all)
-
-            f1_testacc = torch.sum(lout['f1 acc'])/len(y_all)
-            f2_testacc = torch.sum(lout['f2 acc'])/len(y_all)
-            track_t1_acc.append(f1_testacc)
-            track_t2_acc.append(f2_testacc)
-            track_l01c.append(l01cs_test)
+        
 
             # breakpoint()
     
-
+        dr = 0
         for i, (x_batch, z_batch, y_batch) in enumerate(train_loader):
             
            
@@ -81,14 +66,27 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
                 s = 1- torch.nn.Softmax(dim=-1)(t1).max(dim=-1).values
                 # breakpoint()
             elif loss_type == 'hinge_surrogate':
-                loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
+                if warmup:
+                    if j <= warmup:
+                        loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
+                        a = loss.detach().numpy()/x_batch.shape[0]
+                        loss = loss_f1 + loss_f2
+                    else:
+                        loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
+
+                else: loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
             f1ls.append(loss_f1.detach().numpy().item()/x_batch.shape[0])
             f2ls.append(loss_f2.detach().numpy().item()/x_batch.shape[0])
             # breakpoint()
-            ls.append(loss.detach().numpy().item()/x_batch.shape[0])
+            if warmup and j <= warmup and loss_type=='hinge_surrogate':
+                ls.append(a)
+            else: 
+                ls.append(loss.detach().numpy()/x_batch.shape[0])
             f1 = torch.max(t1, dim=-1).indices
             f2 = torch.max(t2 , dim=-1).indices
             a = l01c_multi(f1, f2, y_batch, s, cost)['l01c loss']
+            dr += torch.where(s > 0.5, 1, 0).sum()
+            
             # ls.append(loss.detach().numpy().item()/x_batch.shape[0])
             l01cs.append(a.detach().numpy().item())
             loss.backward()
@@ -97,15 +95,62 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
             running_loss += loss.item()
             track_batch_loss.append(loss.item())
             
-        
-       
+        if  j%1 == 0:
+            # test_acc_t1, test_acc_t2, test_01c = compute_accuracies_and_01c(two_stage_model, test_loader, cost, data='llm')
+            t1_all, t2_all, y_all, x_all, z_all, s_all= get_pred(two_stage_model, test_loader, 'llm', cost)
+            f1_all = torch.max(t1_all, dim=-1).indices
+            f2_all = torch.max(t2_all , dim=-1).indices
+            lout = l01c_multi(f1_all, f2_all, y_all, s_all, cost)
+
+
+            l01cs_test =lout['l01c loss'].detach().item()
+            df_testacc = torch.sum(lout['deferral accuracy'])/len(y_all)
+            f1_testpen= lout['f1 selected penalty']
+            f2_testpen = lout['f2 selected penalty']
+            df_testrate = torch.sum(lout['rate of deferral'])/len(y_all)
+
+            f1_testacc = torch.sum(lout['f1 acc'])/len(y_all)
+            f2_testacc = torch.sum(lout['f2 acc'])/len(y_all)
+            track_t1_acc.append(f1_testacc)
+            track_t2_acc.append(f2_testacc)
+            track_l01c.append(l01cs_test)
+
+            if loss_type == 'separate':
+                # loss_f1, loss_f2 = sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s)
+                loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_all, cost, t1_all, t2_all, s_all)
+
+                loss = loss_f1 + loss_f2
+                # s = 1- torch.abs(t1)
+                s = 1- torch.nn.Softmax(dim=-1)(t1).max(dim=-1).values
+                # breakpoint()
+            elif loss_type == 'hinge_surrogate':
+                if warmup:
+                    if j <= warmup:
+                        loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_all, cost, t1_all, t2_all, s_all)
+                        a = loss.detach().numpy()/x_batch.shape[0]
+                        loss = loss_f1 + loss_f2
+                    else:
+                        loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_all, cost, t1_all, t2_all, s_all)
+
+                else: loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_all, cost, t1_all, t2_all, s_all)
+        track_df.append(dr/800)
         avg_loss = running_loss/ len(train_loader.dataset)
         track_epoch_loss.append(avg_loss)
-        print(f"Epoch {j+1}/{epoch}, Loss: {avg_loss}")
-        scheduler.step()
-     
-    t1_all, t2_all, y_all, x_all, z_all, s_all= get_pred(two_stage_model, test_loader, 'llm', cost)
+        # print(f"Epoch {j+1}/{epoch}, Loss: {avg_loss}")
+        print(f"Epoch {j+1}/{epoch}, Test Loss: {loss/100}")
+        if loss/100 < es_loss- 0.01*loss/100:
+            es_loss = loss/100
+            patience_count=0
+        else:
+            patience_count += 1
+        if patience_count > patience:
+            print('early stopping at epoch ',j)
+            break
 
+        scheduler.step()
+    # t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=True)
+    t1_all, t2_all, y_all, x_all, z_all, s_all= get_pred(two_stage_model, test_loader, 'llm', cost)
+    if loss_type =='hinge_surrogate': s = 1- torch.nn.Softmax(dim=-1)(t1).max(dim=-1).values
     # breakpoint()
     print('average defferal to f2:', torch.mean(s_all))
     # print('average ground truth defferal to f2:', torch.mean(gt_s_all))
@@ -148,6 +193,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     
     training_log_dict['df_testacc'] = df_testacc
     training_log_dict['df_testrate'] = df_testrate
+    training_log_dict['track_df'] = track_df
     training_log_dict['f1 acc'] = f1_testacc
     training_log_dict['f2 acc'] = f2_testacc
 

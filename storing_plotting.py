@@ -24,6 +24,8 @@ def storing_and_plotting(training_log_dict, prefix):
     param_ds = training_log_dict['param_ds']
     track_t1_acc = training_log_dict['track_t1_acc']
     track_t2_acc = training_log_dict['track_t2_acc']
+    track_df  = training_log_dict['track_df']
+
     # l01cs = training_log_dict['l01cs']
     test_01c = training_log_dict['track_01c']
     if 'optimal_lo1c' in training_log_dict.keys(): 
@@ -43,19 +45,24 @@ def storing_and_plotting(training_log_dict, prefix):
     
 
 
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+    fig, ax = plt.subplots(2, 2, figsize=(10, 10))
     # breakpoint()
-    ax[0].plot(track_t1_acc, label='Accuracy 1', marker='o')
-    ax[0].set_title('f1')
-    ax[0].set_xlabel('Epoch')
-    ax[0].set_ylabel('Accuracy')
-    ax[0].legend()
+    ax[0,0].plot(track_t1_acc, label='Accuracy 1', marker='o')
+    ax[0,0].set_title('f1')
+    ax[0,0].set_xlabel('Epoch')
+    ax[0,0].set_ylabel('Accuracy')
+    ax[0,0].legend()
     
-    ax[1].plot(track_t2_acc, label='Accuracy 2', marker='o', color='r')
-    ax[1].set_title('f2')
-    ax[1].set_xlabel('Epoch')
-    ax[1].set_ylabel('Accuracy')
-    ax[1].legend()
+    ax[0,1].plot(track_t2_acc, label='Accuracy 2', marker='o', color='r')
+    ax[0,1].set_title('f2')
+    ax[0,1].set_xlabel('Epoch')
+    ax[0,1].set_ylabel('Accuracy')
+    ax[0,1].legend()
+
+    ax[1,0].plot(track_df, label='deferral rate', marker='o', color='g')
+    ax[1,0].set_title('deferral rate')
+    ax[1,0].set_xlabel('Epoch')
+    ax[1,0].set_ylabel('Rate of Deferral to f2')
     
     plt.tight_layout()
     plt.savefig(os.path.join(figure_path, prefix+'acc.pdf'))
@@ -132,7 +139,7 @@ def plotting_multi_costs(costs, baseline_dicts):
 
         for base_dict in baseline_dicts:
             ax[1,0].scatter(x=costs, y=base_dict['df_testacc'], label=base_dict['name'])
-        
+            # breakpoint()
         ax[1,0].set_title('average test-set deferral accuracy')
         ax[1,0].set_ylabel('deferral accuracy')
         ax[1,0].set_xlabel('cost')
