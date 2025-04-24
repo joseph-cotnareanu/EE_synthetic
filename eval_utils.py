@@ -59,8 +59,10 @@ def l01c_multi(f1, f2, target, s,c):
     rd = torch.where(s > 0.5, 1.0, 0.0)
     rd_gt = torch.where(f1 != target, torch.where(f2 == target, 1, 0), 0.0)
     defer_acc = torch.where(rd == rd_gt, 1.0, 0.0)
-    f1_acc = 1-f1_pen
-    f2_acc = 1 - (f2_pen/(1+c))
+    # f1_acc = 1-f1_pen
+    # f2_acc = 1 - (f2_pen/(1+c))
+    f1_acc = torch.where(f1 == target, 1, 0).sum()
+    f2_acc = torch.where(f2 == target, 1, 0).sum()
     # breakpoint()
     return {
             'l01c loss' : torch.mean(f1_s_pen + f2_s_pen), 

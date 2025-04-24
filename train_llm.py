@@ -2,7 +2,7 @@ import torch
 from tqdm import tqdm
 from eval_utils import compute_accuracies_and_01c, get_pred, l01c, l01c_multi
 from storing_plotting import plot_xzy
-from training.loss import loss_hinge_joint, sep_hinge, loss_CE_joint, multi_class_loss_hinge_joint
+from training.loss import loss_hinge_joint, sep_hinge, loss_CE_joint, multi_class_loss_hinge_joint, correct_mc_hinge
 
 
 
@@ -59,9 +59,12 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
             debug=False
             if loss_type == 'separate':
                 # loss_f1, loss_f2 = sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s)
-                loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
+                # loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
 
-                loss = loss_f1 + loss_f2
+                # loss = loss_f1 + loss_f2
+                loss_f1 = correct_mc_hinge(t1, y_batch).sum()
+                loss_f2 = correct_mc_hinge(t2, y_batch).sum()
+                loss = (loss_f1 + loss_f2).sum()
                 # s = 1- torch.abs(t1)
                 s = 1- torch.nn.Softmax(dim=-1)(t1).max(dim=-1).values
                 # breakpoint()
@@ -150,9 +153,8 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
         scheduler.step()
     # t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=True)
     t1_all, t2_all, y_all, x_all, z_all, s_all= get_pred(two_stage_model, test_loader, 'llm', cost)
-    if loss_type =='hinge_surrogate': s = 1- torch.nn.Softmax(dim=-1)(t1).max(dim=-1).values
+    if loss_type =='separate': s_all = 1- torch.nn.Softmax(dim=-1)(t1_all).max(dim=-1).values
     # breakpoint()
-    print('average defferal to f2:', torch.mean(s_all))
     # print('average ground truth defferal to f2:', torch.mean(gt_s_all))
     # plot_xzy(x_all, z_all,s_all, prefix=str(cost)+'_s_')
     # # plot_xzy(x_all, z_all,gt_s_all, prefix=str(cost)+'_gt_s_')
@@ -169,7 +171,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     lout = l01c_multi(f1_all, f2_all, y_all, s_all, cost)
 
 
-    l01cs_test =lout['l01c loss'].detach().item()
+    l01cs_test =lout['l01c loss'].clone().detach().item()
     df_testacc = torch.sum(lout['deferral accuracy'])/len(y_all)
     f1_testpen= lout['f1 selected penalty']
     f2_testpen = lout['f2 selected penalty']
@@ -192,10 +194,11 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     # training_log_dict['optimal_l01c'] = optimal_l01c
     
     training_log_dict['df_testacc'] = df_testacc
-    training_log_dict['df_testrate'] = df_testrate
+    training_log_dict['df_testrate'] = df_testrate.clone()
     training_log_dict['track_df'] = track_df
     training_log_dict['f1 acc'] = f1_testacc
     training_log_dict['f2 acc'] = f2_testacc
+    print('average defferal to f2:', df_testrate)
 
     return two_stage_model, training_log_dict, 
 
