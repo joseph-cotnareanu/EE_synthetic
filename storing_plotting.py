@@ -1,9 +1,27 @@
 ﻿from matplotlib import pyplot as plt
-
+from matplotlib_venn import venn3
 import os
 import numpy as np
 import pickle
 figure_path = 'figures'
+
+def venn_region_counts(A, B, C):
+    A = np.array(A, dtype=bool)
+    B = np.array(B, dtype=bool)
+    C = np.array(C, dtype=bool)
+    
+    regions = {
+        'Abc': np.sum(A & ~B & ~C),
+        'aBc': np.sum(~A & B & ~C),
+        'ABc': np.sum(A & B & ~C),
+        'abC': np.sum(~A & ~B & C),
+        'AbC': np.sum(A & ~B & C),
+        'aBC': np.sum(~A & B & C),
+        'ABC': np.sum(A & B & C),
+    }
+
+    return regions
+
 
 def only_storing_plotting_latter(training_log_dict, prefix):
     """
@@ -207,7 +225,9 @@ def plotting_multi_costs(costs, baseline_dicts):
         xes = []
         yes = []
         for c in costs:
-            costs += [np.log(c)]*100
+            # breakpoint()    
+
+            xes += [np.log(c)]*100
             yes += list(range(100))
         for base_dict in baseline_dicts:
             s = base_dict['s']
@@ -217,7 +237,21 @@ def plotting_multi_costs(costs, baseline_dicts):
             ax[4,i].set_xlabel('log cost')
             i += 1
 
+       
 
         plt.tight_layout
         plt.savefig('./figures/costfig.pdf')
+        plt.close()
+
+        s0 = baseline_dicts[0]['s'][0]
+        s1 = baseline_dicts[0]['s'][-2]
+        s2 = baseline_dicts[0]['s'][-1]
+
+        vrc = venn_region_counts(s0, s1, s2)
+
+        v = venn3(subsets = list(vrc.values()), set_labels=('cost = ' + str(costs[0]), 'cost = ' + str(costs[-2]), 'cost = ' + str(costs[-1])))
+        plt.title("Overlapping selections over costs")
+
+        plt.tight_layout
+        plt.savefig('./figures/venn.pdf')
         plt.close()

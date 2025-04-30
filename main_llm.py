@@ -140,7 +140,7 @@ if __name__ == '__main__':
     # costs = list(np.arange(0.01,0.09, 0.01))
     # costs = list(np.arange(0.001, 0.003, 0.0004))
     costs = list(np.arange(0.001,0.01, 0.002))
-    costs = [0, 0.001, 0.01, 0.1, 0.5, 1]
+    costs = [0.0001, 0.001, 0.01, 0.1, 0.5, 1]
     costs = costs[::-1]
     # costs = [0.001, 0.01, 0.1,0.5]
     #costs = [0.05]
