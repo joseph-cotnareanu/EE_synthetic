@@ -1,4 +1,4 @@
-
+﻿
 from storing_plotting import plotting_multi_costs, storing_and_plotting
 from torch.utils.data import  DataLoader, TensorDataset
 from train import train_two_stage_experiment
@@ -167,6 +167,9 @@ if __name__ == '__main__':
         base_dict['df_testrate'] = []
         base_dict['f1 acc'] = []
         base_dict['f2 acc'] = []
+        base_dict['f1 s acc'] = []
+        base_dict['f2 s acc'] = []
+        base_dict['s'] = []
     
     for trial in range(num_trials):
         # data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
@@ -184,6 +187,11 @@ if __name__ == '__main__':
                 cost_plot_log_2s['df_testrate'].append(training_log_dict['df_testrate'])
                 cost_plot_log_2s['f1 acc'].append(training_log_dict['f1 acc'])
                 cost_plot_log_2s['f2 acc'].append(training_log_dict['f2 acc'])
+                cost_plot_log_2s['f1 s acc'].append(training_log_dict['f1s_acc'])
+                cost_plot_log_2s['f2 s acc'].append(training_log_dict['f2s_acc'])
+                cost_plot_log_2s['s'].append(training_log_dict['s'])
+                
+
 
 
                 storing_and_plotting(training_log_dict, prefix='llm_2s_exp' + str(cost)+'_')
@@ -197,6 +205,10 @@ if __name__ == '__main__':
                 cost_plot_log_sep['df_testrate'].append(training_log_dict['df_testrate'])
                 cost_plot_log_sep['f1 acc'].append(training_log_dict['f1 acc'])
                 cost_plot_log_sep['f2 acc'].append(training_log_dict['f2 acc'])
+                cost_plot_log_sep['f1 s acc'].append(training_log_dict['f1s_acc'])
+                cost_plot_log_sep['f2 s acc'].append(training_log_dict['f2s_acc'])
+                cost_plot_log_sep['s'].append(training_log_dict['s'])
+
 
                 storing_and_plotting(training_log_dict, prefix='sep_exp' + str(cost)+'_')
            

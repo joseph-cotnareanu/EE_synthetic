@@ -22,6 +22,8 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     track_epoch_loss = []
     track_t1_acc = []
     track_t2_acc = []
+    track_t1s_acc = []
+    track_t2s_acc = []
     track_l01c = []
     track_df = []
     training_log_dict = {}
@@ -87,7 +89,8 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
                 ls.append(loss.detach().numpy()/x_batch.shape[0])
             f1 = torch.max(t1, dim=-1).indices
             f2 = torch.max(t2 , dim=-1).indices
-            a = l01c_multi(f1, f2, y_batch, s, cost)['l01c loss']
+            lout = l01c_multi(f1, f2, y_batch, s, cost)
+            a = lout['l01c loss']
             dr += torch.where(s > 0.5, 1, 0).sum()
             
             # ls.append(loss.detach().numpy().item()/x_batch.shape[0])
@@ -108,8 +111,8 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
 
             l01cs_test =lout['l01c loss'].detach().item()
             df_testacc = torch.sum(lout['deferral accuracy'])/len(y_all)
-            f1_testpen= lout['f1 selected penalty']
-            f2_testpen = lout['f2 selected penalty']
+            # f1_testpen= lout['f1 selected penalty']
+            # f2_testpen = lout['f2 selected penalty']
             df_testrate = torch.sum(lout['rate of deferral'])/len(y_all)
 
             f1_testacc = torch.sum(lout['f1 acc'])/len(y_all)
@@ -117,6 +120,8 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
             track_t1_acc.append(f1_testacc)
             track_t2_acc.append(f2_testacc)
             track_l01c.append(l01cs_test)
+            track_t1s_acc.append(lout['f1 selected acc'])
+            track_t2s_acc.append(lout['f2 selected acc'])
 
             if loss_type == 'separate':
                 # loss_f1, loss_f2 = sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s)
@@ -173,8 +178,8 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
 
     l01cs_test =lout['l01c loss'].clone().detach().item()
     df_testacc = torch.sum(lout['deferral accuracy'])/len(y_all)
-    f1_testpen= lout['f1 selected penalty']
-    f2_testpen = lout['f2 selected penalty']
+    # f1_testpen= lout['f1 selected penalty']
+    # f2_testpen = lout['f2 selected penalty']
     df_testrate = torch.sum(lout['rate of deferral'])/len(y_all)
 
     f1_testacc = torch.sum(lout['f1 acc'])/len(y_all)
@@ -198,6 +203,11 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     training_log_dict['track_df'] = track_df
     training_log_dict['f1 acc'] = f1_testacc
     training_log_dict['f2 acc'] = f2_testacc
+    training_log_dict['track_t1s_acc'] = track_t1s_acc
+    training_log_dict['track_t2s_acc'] = track_t2s_acc
+    training_log_dict['f1s_acc'] = lout['f1 selected acc']
+    training_log_dict['f2s_acc'] = lout['f2 selected acc']
+    training_log_dict['s'] = torch.where(s_all > 0.5, 1, 0)
     print('average defferal to f2:', df_testrate)
 
     return two_stage_model, training_log_dict, 

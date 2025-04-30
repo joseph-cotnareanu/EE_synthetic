@@ -51,6 +51,7 @@ def l01c_multi(f1, f2, target, s,c):
     # s = s.reshape(target.shape).to(torch.float)
     # target = target.to(torch.float)
     # breakpoint()
+    s = s.squeeze()
     target = target.max(dim=-1).indices
     f1_pen = torch.where(f1 != target, 1.0, 0.0)
     f1_s_pen = torch.where(s <= 0.5, f1_pen, 0.0)
@@ -61,8 +62,15 @@ def l01c_multi(f1, f2, target, s,c):
     defer_acc = torch.where(rd == rd_gt, 1.0, 0.0)
     # f1_acc = 1-f1_pen
     # f2_acc = 1 - (f2_pen/(1+c))
+    
     f1_acc = torch.where(f1 == target, 1, 0).sum()
     f2_acc = torch.where(f2 == target, 1, 0).sum()
+    f1_selection_mask = torch.where(s < 0.5, f1, -1)
+    f2_selection_mask = torch.where(s > 0.5, f2, -1)
+
+    f1_s_acc = torch.where(f1_selection_mask == target,1, 0).sum()/(len(s) - rd.sum())
+    f2_s_acc = torch.where(f2_selection_mask == target, 1, 0).sum()/(rd.sum())
+    # breakpoint()
     # breakpoint()
     return {
             'l01c loss' : torch.mean(f1_s_pen + f2_s_pen), 
@@ -70,8 +78,8 @@ def l01c_multi(f1, f2, target, s,c):
             'f2 penalty' : f2_pen,
             'f1 acc': f1_acc,
             'f2 acc': f2_acc,
-            'f1 selected penalty' : f1_s_pen,
-            'f2 selected penalty' : f2_s_pen,
+            'f1 selected acc' : f1_s_acc,
+            'f2 selected acc' : f2_s_acc,
             'rate of deferral':torch.sum(rd),
             'gt rate of deferral': torch.sum(rd_gt),
             'deferral accuracy': defer_acc

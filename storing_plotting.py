@@ -1,6 +1,7 @@
-from matplotlib import pyplot as plt
+﻿from matplotlib import pyplot as plt
 
 import os
+import numpy as np
 import pickle
 figure_path = 'figures'
 
@@ -24,7 +25,13 @@ def storing_and_plotting(training_log_dict, prefix):
     param_ds = training_log_dict['param_ds']
     track_t1_acc = training_log_dict['track_t1_acc']
     track_t2_acc = training_log_dict['track_t2_acc']
+
+    track_t1s_acc = training_log_dict['track_t1s_acc']
+    track_t2s_acc = training_log_dict['track_t2s_acc']
+
     track_df  = training_log_dict['track_df']
+    f1_s_acc = training_log_dict['f1s_acc']
+    f2_s_acc = training_log_dict['f2s_acc']
 
     # l01cs = training_log_dict['l01cs']
     test_01c = training_log_dict['track_01c']
@@ -45,7 +52,7 @@ def storing_and_plotting(training_log_dict, prefix):
     
 
 
-    fig, ax = plt.subplots(2, 2, figsize=(10, 10))
+    fig, ax = plt.subplots(3, 2, figsize=(10, 15))
     # breakpoint()
     ax[0,0].plot(track_t1_acc, label='Accuracy 1', marker='o')
     ax[0,0].set_title('f1')
@@ -64,11 +71,24 @@ def storing_and_plotting(training_log_dict, prefix):
     ax[1,0].set_xlabel('Epoch')
     ax[1,0].set_ylabel('Rate of Deferral to f2')
     
+    ax[2,0].plot(track_t1s_acc, label='Selected Accuracy 1', marker='o')
+    ax[2,0].set_title('selected f1')
+    ax[2,0].set_xlabel('Epoch')
+    ax[2,0].set_ylabel('Accuracy')
+    ax[2,0].legend()
+
+    ax[2,1].plot(track_t2s_acc, label='Selected Accuracy 2', marker='o')
+    ax[2,1].set_title('selected f2')
+    ax[2,1].set_xlabel('Epoch')
+    ax[2,1].set_ylabel('Accuracy')
+    ax[2,1].legend()
+
+
     plt.tight_layout()
     plt.savefig(os.path.join(figure_path, prefix+'acc.pdf'))
     plt.close()
 
-    fig, ax = plt.subplots(2, 2, figsize=(10, 10))
+    fig, ax = plt.subplots(3, 2, figsize=(10, 15))
     
     ax[0,0].plot(ls, label='surrogate', marker='o')
     ax[0,0].set_title('surrogate loss')
@@ -93,6 +113,8 @@ def storing_and_plotting(training_log_dict, prefix):
     ax[1,1].set_xlabel('Epoch')
     ax[1,1].set_ylabel('loss')
     ax[1,1].legend()
+    
+
 
     plt.tight_layout()
     plt.savefig(os.path.join(figure_path,prefix+'losses.pdf'))
@@ -126,7 +148,7 @@ def plotting_multi_costs(costs, baseline_dicts):
     
         # breakpoint()
         # breakpoint()
-        fig, ax = plt.subplots(3, 2, figsize=(10,15))
+        fig, ax = plt.subplots(5, 2, figsize=(10,25))
         for base_dict in baseline_dicts:
             try:
                 ax[0,0].scatter(x=costs, y=base_dict['test_avg_l01c'], label=base_dict['name'])
@@ -167,6 +189,33 @@ def plotting_multi_costs(costs, baseline_dicts):
         ax[2,1].set_xlabel('cost')
         ax[2,1].legend()
 
+        for base_dict in baseline_dicts:
+            ax[3,0].scatter(x=costs, y=base_dict['f1 s acc'], label=base_dict['name'])
+        ax[3,0].set_title('f1 selected acc')
+        ax[3,0].set_ylabel('accuracy')
+        ax[3,0].set_xlabel('cost')
+        ax[3,0].legend()
+
+        for base_dict in baseline_dicts:
+            ax[3,1].scatter(x=costs, y=base_dict['f2 s acc'], label=base_dict['name'])
+        ax[3,1].set_title('f2 selected acc')
+        ax[3,1].set_ylabel('accuracy')
+        ax[3,1].set_xlabel('cost')
+        ax[3,1].legend()
+
+        i = 0
+        xes = []
+        yes = []
+        for c in costs:
+            costs += [np.log(c)]*100
+            yes += list(range(100))
+        for base_dict in baseline_dicts:
+            s = base_dict['s']
+            ax[4,i].scatter(x=xes, y=yes, c = s)
+            ax[4,i].set_title('deferral selection over testset')
+            ax[4,i].set_ylabel('test-set indices')
+            ax[4,i].set_xlabel('log cost')
+            i += 1
 
 
         plt.tight_layout
