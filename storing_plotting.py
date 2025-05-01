@@ -232,7 +232,7 @@ def plotting_multi_costs(costs, baseline_dicts):
         for base_dict in baseline_dicts:
             s = base_dict['s']
             ax[4,i].scatter(x=xes, y=yes, c = s)
-            ax[4,i].set_title('deferral selection over testset')
+            ax[4,i].set_title(base_dict['name'] + ' deferral selection over testset')
             ax[4,i].set_ylabel('test-set indices')
             ax[4,i].set_xlabel('log cost')
             i += 1
@@ -244,12 +244,12 @@ def plotting_multi_costs(costs, baseline_dicts):
         plt.close()
 
         s0 = baseline_dicts[0]['s'][0]
-        s1 = baseline_dicts[0]['s'][-2]
+        s1 = baseline_dicts[0]['s'][1]
         s2 = baseline_dicts[0]['s'][-1]
 
         vrc = venn_region_counts(s0, s1, s2)
 
-        v = venn3(subsets = list(vrc.values()), set_labels=('cost = ' + str(costs[0]), 'cost = ' + str(costs[-2]), 'cost = ' + str(costs[-1])))
+        v = venn3(subsets = list(vrc.values()), set_labels=('cost = ' + str(costs[0]), 'cost = ' + str(costs[1]), 'cost = ' + str(costs[-1])))
         plt.title("Overlapping selections over costs")
 
         plt.tight_layout
