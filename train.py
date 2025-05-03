@@ -1,7 +1,6 @@
 import torch 
 from tqdm import tqdm
 from eval_utils import compute_accuracies_and_01c, get_pred, l01c
-from storing_plotting import plot_xzy
 from training.loss import loss_hinge_joint, sep_hinge
 
 
@@ -9,7 +8,6 @@ from training.loss import loss_hinge_joint, sep_hinge
 def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs):
     
     epoch = training_configs['epoch']
-    batch_size = training_configs['batch_size']
     lr = training_configs['lr']
     loss_type = training_configs['loss_type']
     
@@ -31,11 +29,18 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     l01cs_test = []
     df_testacc = []
     df_testrate = []
-    for j in tqdm(range(epoch)):
+    
+    t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader, data='toy',cost=cost)
+
+    print('PRE TRAINING -----------')
+    print('average defferal to f2:', torch.mean(s_all))
+    print('average ground truth defferal to f2:', torch.mean(gt_s_all))
+    print('-----------')
+    for j in range(epoch):
         running_loss = 0
         debug=False
         
-        for i, (x_batch, z_batch, y_batch) in enumerate(train_loader):
+        for i, (x_batch, z_batch, y_batch) in tqdm(enumerate(train_loader), total=len(train_loader)):
             if  i%32 == 0:
                 test_acc_t1, test_acc_t2, test_01c = compute_accuracies_and_01c(two_stage_model, test_loader, cost)
                 track_t1_acc.append(test_acc_t1)
@@ -44,10 +49,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
            
             optimizer.zero_grad()
             t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=debug)
-            if 'c' in param_dict:
-
-                cs.append(param_dict['c'].detach().numpy().item())
-                ds.append(param_dict['d'].detach().numpy().item())
+            
             debug=False
             if loss_type == 'separate':
                 loss_f1, loss_f2 = sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s)
@@ -76,16 +78,15 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
         print(f"Epoch {j+1}/{epoch}, Loss: {avg_loss}")
         scheduler.step()
      
-    t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader,cost)
+    t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader, data='toy',cost=cost)
 
 
+    print('POST TRAINING -----------')
     print('average defferal to f2:', torch.mean(s_all))
     print('average ground truth defferal to f2:', torch.mean(gt_s_all))
-    plot_xzy(x_all, z_all,s_all, prefix=str(cost)+'_s_')
-    plot_xzy(x_all, z_all,gt_s_all, prefix=str(cost)+'_gt_s_')
-    plot_xzy(x_all, z_all, y_all[:,1], prefix=str(cost)+'_gt_')
-    plot_xzy(x_all, z_all, t1_all, prefix=str(cost)+'_t1_')
-    plot_xzy(x_all, z_all, t2_all, prefix=str(cost)+'_t2_')
+    print('-----------')
+    print('\n\n')
+    
 
     
     optimal_l01c =l01c(gt_f1_all, gt_f2_all, y_all[:,1], gt_s_all, cost)['l01c loss'].detach().item()
@@ -101,7 +102,16 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     f1_testacc = torch.sum(lout['f1 acc'])/len(y_all)
     f2_testacc = torch.sum(lout['f2 acc'])/len(y_all)
      
-    
+
+    training_log_dict['xzy_x'] = x_all
+    training_log_dict['xzy_z'] = z_all
+    training_log_dict['xzy_s'] = s_all
+    training_log_dict['xzy_gt_s'] = gt_s_all
+    training_log_dict['xzy_y'] = y_all
+    training_log_dict['xzy_t1'] = t1_all
+    training_log_dict['xzy_t2'] = t2_all
+
+
     training_log_dict['param_cs'] = cs
     training_log_dict['param_ds'] = ds
     training_log_dict['track_t1_acc'] = track_t1_acc

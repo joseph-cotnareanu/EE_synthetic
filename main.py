@@ -44,12 +44,16 @@ if __name__ == '__main__':
     two_stage_model_name = 'NN' # NN
     training_configs = {'epoch':5, 'lr':0.001, 'batch_size':512}
     
-    exp = 'two_stage_experiment'
+    num_classes = 2
     cost_plot_log_sep = {'name':'sep_hinge_experiment'}
     cost_plot_log_2s = {'name':'two_stage_experiment'}
-
-    
-    baseline_dicts = [cost_plot_log_2s, cost_plot_log_sep]
+    exp = 'two_stage_experiment'
+    if exp == 'both':
+        baseline_dicts = [cost_plot_log_2s, cost_plot_log_sep]
+    elif exp == 'two_stage_experiment':
+        baseline_dicts = [cost_plot_log_2s]
+    elif exp == 'sep_hinge_experiment':
+        baseline_dicts = [cost_plot_log_sep]
     
     for base_dict in baseline_dicts:
         base_dict['test_avg_l01c'] = []
@@ -63,10 +67,10 @@ if __name__ == '__main__':
         
         train_loader, test_loader = data_dict_to_dataloader(data_dict)
         
-        for cost in tqdm(costs):
+        for cost in costs:
             
             if exp == 'two_stage_experiment' or  exp == 'both': 
-                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=1, hidden_dim=hidden_dim, two_stage_model_name=two_stage_model_name)
+                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=num_classes, hidden_dim=hidden_dim, two_stage_model_name=two_stage_model_name)
                 training_configs['loss_type'] = 'hinge_surrogate'
                 two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs)
 
@@ -80,7 +84,7 @@ if __name__ == '__main__':
                 only_storing_plotting_latter(training_log_dict, prefix='2s_exp' + str(cost)+'_')
 
             if exp == 'sep_hinge_experiment' or  exp == 'both': 
-                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=2, two_stage_model_name=two_stage_model_name)
+                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=num_classes, hidden_dim=hidden_dim, two_stage_model_name=two_stage_model_name)
                 training_configs['loss_type'] = 'separate'
                 two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs)
 
