@@ -168,6 +168,7 @@ def plotting_multi_costs(costs, baseline_dicts):
         # breakpoint()
         fig, ax = plt.subplots(5, 2, figsize=(10,25))
         for base_dict in baseline_dicts:
+            # breakpoint()
             try:
                 ax[0,0].scatter(x=costs, y=base_dict['test_avg_l01c'], label=base_dict['name'])
             except: breakpoint()
@@ -227,7 +228,7 @@ def plotting_multi_costs(costs, baseline_dicts):
         for c in costs:
             # breakpoint()    
 
-            xes += [np.log(c)]*100
+            xes += [np.log(c+ 0.00000000000001)]*100
             yes += list(range(100))
         for base_dict in baseline_dicts:
             s = base_dict['s']
@@ -248,6 +249,10 @@ def plotting_multi_costs(costs, baseline_dicts):
         s2 = baseline_dicts[0]['s'][-1]
 
         vrc = venn_region_counts(s0, s1, s2)
+
+        # vrc = list(vrc.values)
+
+
 
         v = venn3(subsets = list(vrc.values()), set_labels=('cost = ' + str(costs[0]), 'cost = ' + str(costs[1]), 'cost = ' + str(costs[-1])))
         plt.title("Overlapping selections over costs")

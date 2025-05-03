@@ -3,8 +3,7 @@ from tqdm import tqdm
 from eval_utils import compute_accuracies_and_01c, get_pred, l01c, l01c_multi
 from storing_plotting import plot_xzy
 from training.loss import loss_hinge_joint, sep_hinge, loss_CE_joint, multi_class_loss_hinge_joint, correct_mc_hinge
-
-
+import copy
 
 def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs):
     torch.autograd.set_detect_anomaly(True)
@@ -14,7 +13,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     loss_type = training_configs['loss_type']
     warmup = training_configs['warmup']
     optimizer = torch.optim.Adam(two_stage_model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1.1)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1.0)
     es_loss = torch.inf
     patience = training_configs['patience']
     patience_count = 0
@@ -36,7 +35,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     l01cs_test = []
     df_testacc = []
     df_testrate = []
-
+    best_model = None
     for j in tqdm(range(epoch)):
         running_loss = 0
         debug=False
@@ -96,6 +95,8 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
             # ls.append(loss.detach().numpy().item()/x_batch.shape[0])
             l01cs.append(a.detach().numpy().item())
             loss.backward()
+
+            torch.nn.utils.clip_grad_norm_(two_stage_model.parameters(), max_norm=1)
             optimizer.step()
 
             running_loss += loss.item()
@@ -149,6 +150,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
         if loss/100 < es_loss- 0.01*loss/100:
             es_loss = loss/100
             patience_count=0
+            best_model = copy.deepcopy(two_stage_model)
         else:
             patience_count += 1
         if patience_count > patience:
@@ -157,7 +159,11 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
 
         scheduler.step()
     # t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=True)
+
+    two_stage_model = best_model
     t1_all, t2_all, y_all, x_all, z_all, s_all= get_pred(two_stage_model, test_loader, 'llm', cost)
+
+    # two_stage_model(x_all, z_all, debug=True)
     if loss_type =='separate': s_all = 1- torch.nn.Softmax(dim=-1)(t1_all).max(dim=-1).values
     # breakpoint()
     # print('average ground truth defferal to f2:', torch.mean(gt_s_all))
@@ -208,6 +214,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     training_log_dict['f1s_acc'] = lout['f1 selected acc']
     training_log_dict['f2s_acc'] = lout['f2 selected acc']
     training_log_dict['s'] = torch.where(s_all > 0.5, 1, 0)
+    # breakpoint()
     print('average defferal to f2:', df_testrate)
 
     return two_stage_model, training_log_dict, 
