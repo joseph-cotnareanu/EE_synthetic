@@ -38,6 +38,7 @@ if __name__ == '__main__':
     costs = [0.05, 0.06]
     test_n = 32*10000
     train_n = 32*10000
+    hidden_dim = 8
     mc_posterior_n = 32*100
     num_trials = 1
     two_stage_model_name = 'NN' # NN
@@ -65,7 +66,7 @@ if __name__ == '__main__':
         for cost in tqdm(costs):
             
             if exp == 'two_stage_experiment' or  exp == 'both': 
-                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=2, two_stage_model_name=two_stage_model_name)
+                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=1, hidden_dim=hidden_dim, two_stage_model_name=two_stage_model_name)
                 training_configs['loss_type'] = 'hinge_surrogate'
                 two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs)
 
