@@ -71,14 +71,14 @@ def correct_mc_hinge(t, y):
 
     return t.sum(dim=-1)[:, None]
     
-def multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s):
+def multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s, nclasses=5):
     # y_batch = torch.max(y_batch, dim=-1).indices
     # hinge_f1 = mc_hinge(t1,y_batch) 
     # hinge_f2 = mc_hinge(t2,y_batch) 
     # breakpoint()
     hinge_f1 = correct_mc_hinge(t1,y_batch) 
     hinge_f2 = correct_mc_hinge(t2,y_batch) 
-    surrogate_loss = (1-s) * hinge_f1 + s * (hinge_f2 + cost*4)
+    surrogate_loss = (1-s) * hinge_f1 + s * (hinge_f2 + cost*(nclasses/(nclasses-1)))
     # breakpoint()
     # breakpoint()
     # breakpoint()

@@ -1,4 +1,4 @@
-
+﻿
 from storing_plotting import plotting_multi_costs, storing_and_plotting
 from torch.utils.data import  DataLoader, TensorDataset
 from train import train_two_stage_experiment
@@ -136,22 +136,31 @@ def data_dict_to_dataloader():
     return train_loader, val_loader, test_loader, xdim, zdim
 
 if __name__ == '__main__':
-   
+    import math
     # costs = list(np.arange(0.01,0.09, 0.01))
     # costs = list(np.arange(0.001, 0.003, 0.0004))
-    costs = list(np.arange(0.001,0.01, 0.002))
-    costs = [0, 0.001, 0.01, 0.1, 0.5, 1]
-    costs = costs[::-1]
+    # costs = list(np.arange(0,0.01, 0.002))
+    # costs = [10000000, 1, 0.5, 0.1, 0.01, 0.001]
+    # costs = [0.001, 0.01,0.5, 1.0]
+    # costs = [0, 0.001, 0.01, 1.0, 100000]
+
+    # costs = [0.0001, 1, math.pow(10, 4), math.pow(10, 12)]
+    # costs = costs[::-1]
     # costs = [0.001, 0.01, 0.1,0.5]
     #costs = [0.05]
+    # costs = [1, 0.1, 0.001]
+    # costs = [0.001, 0.002, 0.003, 0.004, 0.005
+    # costs = list(np.arange(0, 0.1, 0.0005))
+    costs = [0, 0.1, 1, 1000, 10000]
     test_n = 32*10000
     train_n = 32*10000
     mc_posterior_n = 32*100
     num_trials = 1
     two_stage_model_name = 'NN' # NN
-    training_configs = {'epoch':100, 'lr':0.00001, 'batch_size':32, 'data': 'llm', 'nlayers': 2, 'warmup': 0, 'patience': 10} #data: llm or toy
+    training_configs = {'epoch':1000, 'lr':0.001, 'batch_size':32, 'data': 'llm', 'nlayers': 3, 'warmup': 0, 'patience': 20} #data: llm or toy
     
     exp = 'both'
+    # exp = 'two_stage_experiment'
     # exp = 'sep_hinge_experiment'
     cost_plot_log_sep = {'name':'sep_hinge_experiment'}
     cost_plot_log_2s = {'name':'two_stage_experiment'}
@@ -167,6 +176,9 @@ if __name__ == '__main__':
         base_dict['df_testrate'] = []
         base_dict['f1 acc'] = []
         base_dict['f2 acc'] = []
+        base_dict['f1 s acc'] = []
+        base_dict['f2 s acc'] = []
+        base_dict['s'] = []
     
     for trial in range(num_trials):
         # data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
@@ -174,7 +186,7 @@ if __name__ == '__main__':
         train_loader, val_loader, test_loader, xdim, zdim = data_dict_to_dataloader()
         
         for cost in tqdm(costs):
-            two_stage_model = create_llm_model(x_dim=xdim, z_dim=zdim, nlayers=training_configs['nlayers'], num_classes=5, hidden_dim=256, two_stage_model_name=two_stage_model_name)
+            two_stage_model = create_llm_model(x_dim=xdim, z_dim=zdim, nlayers=training_configs['nlayers'], num_classes=5, hidden_dim=128, two_stage_model_name=two_stage_model_name)
             if exp == 'two_stage_experiment' or  exp == 'both': 
                 training_configs['loss_type'] = 'hinge_surrogate'
                 two_stage_model, training_log_dict = train_llm(train_loader, test_loader, cost, two_stage_model, training_configs)
@@ -184,6 +196,11 @@ if __name__ == '__main__':
                 cost_plot_log_2s['df_testrate'].append(training_log_dict['df_testrate'])
                 cost_plot_log_2s['f1 acc'].append(training_log_dict['f1 acc'])
                 cost_plot_log_2s['f2 acc'].append(training_log_dict['f2 acc'])
+                cost_plot_log_2s['f1 s acc'].append(training_log_dict['f1s_acc'])
+                cost_plot_log_2s['f2 s acc'].append(training_log_dict['f2s_acc'])
+                cost_plot_log_2s['s'].append(training_log_dict['s'])
+                
+
 
 
                 storing_and_plotting(training_log_dict, prefix='llm_2s_exp' + str(cost)+'_')
@@ -197,6 +214,10 @@ if __name__ == '__main__':
                 cost_plot_log_sep['df_testrate'].append(training_log_dict['df_testrate'])
                 cost_plot_log_sep['f1 acc'].append(training_log_dict['f1 acc'])
                 cost_plot_log_sep['f2 acc'].append(training_log_dict['f2 acc'])
+                cost_plot_log_sep['f1 s acc'].append(training_log_dict['f1s_acc'])
+                cost_plot_log_sep['f2 s acc'].append(training_log_dict['f2s_acc'])
+                cost_plot_log_sep['s'].append(training_log_dict['s'])
+
 
                 storing_and_plotting(training_log_dict, prefix='sep_exp' + str(cost)+'_')
            

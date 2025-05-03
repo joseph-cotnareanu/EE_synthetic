@@ -146,7 +146,7 @@ class NNTwoStageSeparateLLM_weird(torch.nn.Module):
         self.s_hid = nn.Linear(hidden_dim, hidden_dim)
         self.s_out = nn.Linear(hidden_dim, 1)
         
-        
+        self.s_bn = nn.BatchNorm1d(1)
  
         
     def forward(self, x,z, debug):
@@ -164,12 +164,18 @@ class NNTwoStageSeparateLLM_weird(torch.nn.Module):
         y2 = self.y2_hid(y2)
         # y1 = self.softmax(self.y1_out(y1))
         # y2 = self.softmax(self.y2_out(y2))
-        y1 =self.tanh(nn.BatchNorm1d(self.num_classes - 1)(self.y1_out(y1)))
+        # y1 =self.tanh(nn.BatchNorm1d(self.num_classes - 1)(self.y1_out(y1)))
+        y1 =self.tanh(self.y1_out(y1))
+
         y1 = torch.cat((y1, -y1.sum(-1)[:, None]), -1)
-        y2 = self.tanh(nn.BatchNorm1d(self.num_classes - 1)(self.y2_out(y2)))
+        # y2 = self.tanh(nn.BatchNorm1d(self.num_classes - 1)(self.y2_out(y2)))
+        y2 = self.tanh(self.y2_out(y2))
+
         y2 = torch.cat((y2, -y2.sum(-1)[:, None]), -1)
 
-        s = nn.BatchNorm1d(1)(self.s_out(s))
+        # s = nn.BatchNorm1d(self.hidden_dim, affine=False)(s)
+        s = self.s_out(s)
+        s = self.s_bn(s)
         if debug: breakpoint()
         s = self.sigmoid(s)
         # breakpoint()
