@@ -1,0 +1,239 @@
+import torch
+
+import torch
+import torch.nn as nn
+
+
+class NNTwoStageSeparate(torch.nn.Module):
+    def __init__(self,x_dim:int, z_dim:int, hidden_dim, num_classes:int):
+        
+        super(NNTwoStageSeparate, self).__init__()
+        # hidden_dim = 128
+        self.param_tracking_dict = {}
+        self.y1_in = nn.Linear(x_dim, hidden_dim)
+        self.y1_hid = nn.Linear(hidden_dim, hidden_dim)
+        self.y1_out = nn.Linear(hidden_dim, num_classes)
+        self.y2_in = nn.Linear(z_dim + x_dim, hidden_dim)
+        self.y2_hid = nn.Linear(hidden_dim, hidden_dim)
+        self.y2_out = nn.Linear(hidden_dim, num_classes)
+        self.s_in = nn.Linear(x_dim, hidden_dim)
+        self.s_hid = nn.Linear(hidden_dim, hidden_dim)
+        self.s_out = nn.Linear(hidden_dim, 1)
+        
+        self.sigmoid = torch.nn.Sigmoid()
+       
+        self.relu = torch.nn.ReLU()
+        self.tanh = torch.nn.Tanh()
+ 
+        
+    def forward(self, x,z, debug):
+      
+        y1 = self.tanh(self.y1_out(self.relu(self.y1_hid(self.tanh(self.y1_in(x))))))
+        # y2 = self.relu(self.y2_out(self.relu(self.y2_in(torch.cat((x,z), dim=-1)))))
+        y2 = self.tanh(self.y2_out(self.relu(self.y2_hid(self.relu(self.y2_in(torch.concatenate((x,z), dim=-1)))))))
+
+        s = self.sigmoid(self.s_out(self.relu(self.s_hid(self.relu(self.s_in(x))))))
+        param_tracking_dict  = {'s':s}
+        return y1, y2, s, param_tracking_dict
+
+class NNTwoStageSeparateLLM(torch.nn.Module):
+    def __init__(self,x_dim:int, z_dim:int, hidden_dim,nlayers, num_classes:int):
+        
+        super(NNTwoStageSeparateLLM, self).__init__()
+
+
+        self.sigmoid = torch.nn.Sigmoid()
+        self.softmax = torch.nn.Softmax()
+        self.relu = torch.nn.ReLU()
+        self.tanh = torch.nn.Tanh()
+
+
+        self.hidden_dim = hidden_dim
+        self.nlayers = nlayers
+        self.y1_hid = torch.nn.Sequential()
+        self.y2_hid = torch.nn.Sequential()
+        self.s_hid = torch.nn.Sequential()
+        for i in range(nlayers):
+            self.y1_hid.append(nn.Linear(hidden_dim, hidden_dim))
+            self.y1_hid.append(self.relu)
+            self.y2_hid.append(nn.Linear(hidden_dim, hidden_dim))
+            self.y2_hid.append(self.relu)
+
+            self.s_hid.append(nn.Linear(hidden_dim, hidden_dim))
+            self.s_hid.append(self.relu)
+
+        self.param_tracking_dict = {}
+        self.y1_in = nn.Linear(x_dim, hidden_dim)
+        # self.y1_hid = nn.Linear(hidden_dim, hidden_dim)
+        self.y1_out = nn.Linear(hidden_dim, num_classes)
+        self.y2_in = nn.Linear(z_dim + x_dim, hidden_dim)
+        # self.y2_hid = nn.Linear(hidden_dim, hidden_dim)
+        self.y2_out = nn.Linear(hidden_dim, num_classes-1)
+        self.s_in = nn.Linear(x_dim, hidden_dim)
+        self.s_hid = nn.Linear(hidden_dim, hidden_dim)
+        self.s_out = nn.Linear(hidden_dim, 1)
+        
+        
+ 
+        
+    def forward(self, x,z, debug):
+      
+        y1 = self.relu(self.y1_in(x))
+        y2 = self.relu(self.y2_in(torch.concatenate((x,z), dim=-1)))
+        s = self.relu(self.s_in(x))
+        # for i in range(self.nlayers):
+        #     y1 = self.relu(self.y1_hid[i](y1))
+        #     y2 = self.relu(self.y2_hid[i](y2))
+        #     s = self.relu(self.s_hid[i](x))
+        s = self.s_hid(s)
+        y1 = self.y1_hid(y1)
+        y2 = self.y2_hid(y2)
+        # y1 = self.softmax(self.y1_out(y1))
+        # y2 = self.softmax(self.y2_out(y2))
+        y1 =self.tanh(self.y1_out(y1))
+        y2 = self.tanh(self.y2_out(y2))
+        s = self.sigmoid(self.s_out(s))
+        # breakpoint()
+        # y1 = self.sigmoid(self.y1_out(self.relu(self.y1_hid(self.tanh(self.y1_in(x))))))
+        # # y2 = self.relu(self.y2_out(self.relu(self.y2_in(torch.cat((x,z), dim=-1)))))
+        # y2 = self.sigmoid(self.y2_out(self.relu(self.y2_hid(self.relu(self.y2_in(torch.concatenate((x,z), dim=-1)))))))
+
+        # s = self.sigmoid(self.s_out(self.relu(self.s_hid(self.relu(self.s_in(x))))))
+        param_tracking_dict  = {'s':s}
+        
+        # breakpoint()
+        return y1, y2, s, param_tracking_dict
+    
+
+class NNTwoStageSeparateLLM_weird(torch.nn.Module):
+    def __init__(self,x_dim:int, z_dim:int, hidden_dim,nlayers, num_classes:int):
+        
+        super(NNTwoStageSeparateLLM_weird, self).__init__()
+
+
+        self.sigmoid = torch.nn.Sigmoid()
+        self.softmax = torch.nn.Softmax()
+        self.relu = torch.nn.ReLU()
+        self.tanh = torch.nn.Tanh()
+
+        self.num_classes = num_classes
+        self.hidden_dim = hidden_dim
+        self.nlayers = nlayers
+        self.y1_hid = torch.nn.Sequential()
+        self.y2_hid = torch.nn.Sequential()
+        self.s_hid = torch.nn.Sequential()
+        for i in range(nlayers):
+            self.y1_hid.append(nn.Linear(hidden_dim, hidden_dim))
+            self.y1_hid.append(nn.BatchNorm1d(hidden_dim))
+            self.y1_hid.append(self.relu)
+
+            self.y2_hid.append(nn.Linear(hidden_dim, hidden_dim))
+            self.y2_hid.append(nn.BatchNorm1d(hidden_dim))
+            self.y2_hid.append(self.relu)
+
+            self.s_hid.append(nn.Linear(hidden_dim, hidden_dim))
+            self.s_hid.append(nn.BatchNorm1d(hidden_dim))
+            self.s_hid.append(self.relu)
+
+        self.param_tracking_dict = {}
+        self.y1_in = nn.Linear(x_dim, hidden_dim)
+        # self.y1_hid = nn.Linear(hidden_dim, hidden_dim)
+        self.y1_out = nn.Linear(hidden_dim, num_classes-1)
+        self.y2_in = nn.Linear(z_dim + x_dim, hidden_dim)
+        # self.y2_hid = nn.Linear(hidden_dim, hidden_dim)
+        self.y2_out = nn.Linear(hidden_dim, num_classes-1)
+        self.s_in = nn.Linear(x_dim, hidden_dim)
+        self.s_hid = nn.Linear(hidden_dim, hidden_dim)
+        self.s_out = nn.Linear(hidden_dim, 1)
+        
+        
+ 
+        
+    def forward(self, x,z, debug):
+      
+        y1 = self.relu(self.y1_in(x))
+        y2 = self.relu(self.y2_in(torch.concatenate((x,z), dim=-1)))
+        s = self.relu(self.s_in(x))
+        # for i in range(self.nlayers):
+        #     y1 = self.relu(self.y1_hid[i](y1))
+        #     y2 = self.relu(self.y2_hid[i](y2))
+        #     s = self.relu(self.s_hid[i](x))
+        s = self.s_hid(s)
+        y1 = self.y1_hid(y1)
+
+        y2 = self.y2_hid(y2)
+        # y1 = self.softmax(self.y1_out(y1))
+        # y2 = self.softmax(self.y2_out(y2))
+        y1 =self.tanh(nn.BatchNorm1d(self.num_classes - 1)(self.y1_out(y1)))
+        y1 = torch.cat((y1, -y1.sum(-1)[:, None]), -1)
+        y2 = self.tanh(nn.BatchNorm1d(self.num_classes - 1)(self.y2_out(y2)))
+        y2 = torch.cat((y2, -y2.sum(-1)[:, None]), -1)
+
+        s = nn.BatchNorm1d(1)(self.s_out(s))
+        if debug: breakpoint()
+        s = self.sigmoid(s)
+        # breakpoint()
+        # y1 = self.sigmoid(self.y1_out(self.relu(self.y1_hid(self.tanh(self.y1_in(x))))))
+        # # y2 = self.relu(self.y2_out(self.relu(self.y2_in(torch.cat((x,z), dim=-1)))))
+        # y2 = self.sigmoid(self.y2_out(self.relu(self.y2_hid(self.relu(self.y2_in(torch.concatenate((x,z), dim=-1)))))))
+
+        # s = self.sigmoid(self.s_out(self.relu(self.s_hid(self.relu(self.s_in(x))))))
+        param_tracking_dict  = {'s':s}
+        
+        # breakpoint()
+        return y1, y2, s, param_tracking_dict
+
+class BasicTwoStageSeparate(torch.nn.Module):
+    def __init__(self,x_dim:int, z_dim:int, num_classe:int):
+        """Simple 6 parameter model, with a separate decision module:
+        y1 = sigmoid(ax+b)
+        y1 = sigmoid(cx+d)
+        s = sigmoid(x-e)sigmoid(f-x)
+           
+
+        Args:
+            x_dim int: 
+            z_dim int: 
+            num_classe int: 
+        """
+        super(BasicTwoStageSeparate, self).__init__()
+        
+        self.param_tracking_dict = {}
+        
+        self.a_y1 = nn.Parameter(torch.zeros((1,1), dtype=float, requires_grad=True))
+        self.b_y1 = nn.Parameter(torch.zeros((1,1), dtype=float, requires_grad=True))
+        self.c_y2 = nn.Parameter(torch.zeros((1,1), dtype=float, requires_grad=True))
+        self.d_y2 = nn.Parameter(torch.zeros((1,1), dtype=float, requires_grad=True))
+        
+        self.s_1 = nn.Parameter(torch.zeros((1), dtype=float, requires_grad=True))
+        self.s_2 = nn.Parameter(torch.zeros((1), dtype=float, requires_grad=True))
+        
+        self.params = nn.ParameterList([self.a_y1, self.b_y1,self.c_y2,self.d_y2, self.s_1, self.s_2])
+        
+        self.sigmoid = torch.nn.Sigmoid()
+       
+        
+    def forward(self, x,z, debug):
+        y1 = x*self.a_y1  + self.b_y1
+        y2 =(x+z)* self.c_y2  + self.d_y2
+        
+        s = self.sigmoid(x-self.s_1)*self.sigmoid(self.s_2-x)
+       
+        param_tracking_dict = {'a' : self.a_y1, 'b':self.b_y1, 'c':self.c_y2, 'd':self.d_y2, 's':s}
+        return y1, y2, s, param_tracking_dict
+
+def create_two_stage_model(x_dim:int, z_dim:int, num_classes:int, hidden_dim, two_stage_model_name):
+    if two_stage_model_name == 'linear':
+        two_stage_model = BasicTwoStageSeparate(x_dim, z_dim, num_classes)
+    elif two_stage_model_name == 'NN':
+        two_stage_model = NNTwoStageSeparate(x_dim, z_dim, hidden_dim, num_classes)
+    # torch.nn.init.xavier_uniform(two_stage_model.weight)
+    return two_stage_model
+
+def create_llm_model(x_dim:int, z_dim:int, num_classes:int, nlayers, hidden_dim, two_stage_model_name):
+    if two_stage_model_name == 'linear':
+        two_stage_model = BasicTwoStageSeparate(x_dim, z_dim, num_classes)
+    elif two_stage_model_name == 'NN':
+        two_stage_model = NNTwoStageSeparateLLM_weird(x_dim, z_dim, hidden_dim, nlayers, num_classes)
+    return two_stage_model
+    # torch.nn.init.xavier_uniform(two_stage_model.weight)
