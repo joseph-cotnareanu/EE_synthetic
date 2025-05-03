@@ -113,6 +113,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     training_log_dict['l01cs'] = l01cs
     training_log_dict['test_avg_l01c'] = l01cs_test
     training_log_dict['optimal_l01c'] = optimal_l01c
+    training_log_dict['track_epoch_loss'] = track_epoch_loss
     
     training_log_dict['df_testacc'] = df_testacc
     training_log_dict['df_testrate'] = df_testrate
