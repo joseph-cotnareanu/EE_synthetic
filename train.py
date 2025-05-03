@@ -2,7 +2,7 @@ import torch
 from tqdm import tqdm
 from eval_utils import compute_accuracies_and_01c, get_pred, l01c
 from storing_plotting import plot_xzy
-from training.loss import loss_hinge_joint, sep_hinge, loss_CE_joint
+from training.loss import loss_hinge_joint, sep_hinge
 
 
 

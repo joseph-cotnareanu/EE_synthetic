@@ -1,5 +1,5 @@
 
-from storing_plotting import only_storing_plotting_latter, plotting_multi_costs, storing_and_plotting
+from storing_plotting import only_storing_plotting_latter
 from torch.utils.data import  DataLoader, TensorDataset
 from train import train_two_stage_experiment
 from matplotlib import pyplot as plt
