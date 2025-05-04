@@ -46,7 +46,7 @@ def loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s):
     surrogate_loss = (1-s) * hinge_f1 + s * (hinge_f2 + 2*cost)
     # return sum(surrogate_loss)
     if len(surrogate_loss.shape) == 0: return surrogate_loss, hinge_f1, hinge_f2
-    else: return sum(surrogate_loss), torch.sum(hinge_f1), torch.sum(hinge_f2)
+    else: return torch.sum(surrogate_loss), torch.sum(hinge_f1), torch.sum(hinge_f2)
 
 def sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s):
 

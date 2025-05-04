@@ -1,7 +1,7 @@
 import torch
 from storing_plotting import only_storing_plotting_latter
 from torch.utils.data import  DataLoader, TensorDataset
-from train import train_two_stage_experiment
+from train_multiclass import train_two_stage_experiment
 from matplotlib import pyplot as plt
 import numpy as np
 import os
@@ -10,7 +10,7 @@ seed = 42  # or any number you choose
 
     
 from create_model import create_two_stage_model
-from generate_data import load_data
+from generate_data_multiclass import load_data
 
 def data_dict_to_dataloader(data_dict):
     x_train = data_dict['x_train']
@@ -35,27 +35,25 @@ def data_dict_to_dataloader(data_dict):
 if __name__ == '__main__':
    
     #costs = list(np.arange(0.01,0.09, 0.01))
-    costs = [0.07, 0.03]
+    costs = [0.03]
     test_n = 32*10000
     train_n = 32*10000
-    hidden_dim = 8
-    mc_posterior_n = 32*100
+    hidden_dim = 64
+    mc_posterior_n = 32*1000
     num_trials = 1
+    n_classes = 5
+    n_layers = 3
     two_stage_model_name = 'NN' # NN
     training_configs = {'epoch':50, 'lr':0.001, 'batch_size':512}
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print('Using device:', device)
     
-    num_classes = 2
+    exp = 'two_stage_experiment'
     cost_plot_log_sep = {'name':'sep_hinge_experiment'}
     cost_plot_log_2s = {'name':'two_stage_experiment'}
-    exp = 'two_stage_experiment'
-    if exp == 'both':
-        baseline_dicts = [cost_plot_log_2s, cost_plot_log_sep]
-    elif exp == 'two_stage_experiment':
-        baseline_dicts = [cost_plot_log_2s]
-    elif exp == 'sep_hinge_experiment':
-        baseline_dicts = [cost_plot_log_sep]
+
+    
+    baseline_dicts = [cost_plot_log_2s, cost_plot_log_sep]
     
     for base_dict in baseline_dicts:
         base_dict['test_avg_l01c'] = []
@@ -65,14 +63,14 @@ if __name__ == '__main__':
         base_dict['f2 acc'] = []
     
     for trial in range(num_trials):
-        data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n)
+        data_dict = load_data(trial = trial, train_n=train_n, test_n=test_n, mc_posterior_n=mc_posterior_n, n_classes=n_classes)
         
         train_loader, test_loader = data_dict_to_dataloader(data_dict)
         
-        for cost in costs:
+        for cost in tqdm(costs):
             
             if exp == 'two_stage_experiment' or  exp == 'both': 
-                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=num_classes, hidden_dim=hidden_dim, two_stage_model_name=two_stage_model_name)
+                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=n_classes, hidden_dim=hidden_dim, two_stage_model_name=two_stage_model_name, n_layers=n_layers)
                 two_stage_model.to(device)
                 training_configs['loss_type'] = 'hinge_surrogate'
                 two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs, device=device)
@@ -84,12 +82,13 @@ if __name__ == '__main__':
                 cost_plot_log_2s['f2 acc'].append(training_log_dict['f2 acc'])
 
 
-                only_storing_plotting_latter(training_log_dict, prefix='2s_exp' + str(cost)+'_')
+                only_storing_plotting_latter(training_log_dict, prefix='multi_2s_exp' + str(cost)+'_')
 
             if exp == 'sep_hinge_experiment' or  exp == 'both': 
-                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=num_classes, hidden_dim=hidden_dim, two_stage_model_name=two_stage_model_name)
+                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=n_classes, hidden_dim=hidden_dim, two_stage_model_name=two_stage_model_name, n_layers=n_layers)
+                two_stage_model.to(device)
                 training_configs['loss_type'] = 'separate'
-                two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs)
+                two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs, device=device)
 
                 cost_plot_log_sep['test_avg_l01c'].append(training_log_dict['test_avg_l01c'])
                 cost_plot_log_sep['df_testacc'].append(training_log_dict['df_testacc'])
@@ -97,6 +96,6 @@ if __name__ == '__main__':
                 cost_plot_log_sep['f1 acc'].append(training_log_dict['f1 acc'])
                 cost_plot_log_sep['f2 acc'].append(training_log_dict['f2 acc'])
 
-                only_storing_plotting_latter(training_log_dict, prefix='sep_exp' + str(cost)+'_')
+                only_storing_plotting_latter(training_log_dict, prefix='multi_sep_exp' + str(cost)+'_')
            
-        only_storing_plotting_latter(baseline_dicts, prefix='baseline_' + str(costs) + '_')
+        only_storing_plotting_latter(baseline_dicts, prefix='multi_baseline_' + str(costs) + '_')
