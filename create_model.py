@@ -40,7 +40,7 @@ class NNBinary(torch.nn.Module):
     
 
 class MultiClassNN(torch.nn.Module):
-    def __init__(self,x_dim:int, z_dim:int, hidden_dim,nlayers, output_dim:int):
+    def __init__(self,x_dim:int, z_dim:int, hidden_dim:int, nlayers:int, output_dim:int):
         
         super(MultiClassNN, self).__init__()
 
@@ -109,13 +109,15 @@ class MultiClassNN(torch.nn.Module):
 
 
 
-def create_two_stage_model(x_dim:int, z_dim:int, num_classes:int, hidden_dim, two_stage_model_name):
+def create_two_stage_model(x_dim:int, z_dim:int, num_classes:int, hidden_dim, two_stage_model_name, n_layers:int=1):
     
     if two_stage_model_name == 'NN':
         if num_classes == 2:
+            if n_layers != 1:
+                raise Warning('n_layers is set to {n_layers}, but binary classification will override it to 1')
             two_stage_model = NNBinary(x_dim, z_dim, hidden_dim)
         else:
-            two_stage_model = MultiClassNN(x_dim, z_dim, hidden_dim, output_dim=num_classes)
+            two_stage_model = MultiClassNN(x_dim, z_dim, hidden_dim, n_layers,output_dim=num_classes)
     
     return two_stage_model
 

@@ -114,6 +114,11 @@ def compute_gt_f1_f2(test_py_xz, test_py_x):
     f2_star_y = (test_py_xz >= 0.5).float()
     return f1_star_y, f2_star_y
 
+def compute_gt_f1_f2_multiclass(test_py_xz, test_py_x):
+    f1_star_y = torch.max(test_py_x, dim=-1).indices
+    f2_star_y = torch.max(test_py_xz, dim=-1).indices
+    return f1_star_y, f2_star_y
+
 def accuracy_hinge_model(y_pred, y_true):
     """
     y_pred = some real values [2,-4,3.4,..]
@@ -126,11 +131,11 @@ def accuracy_hinge_model(y_pred, y_true):
 
 
 
-def get_pred(two_stage_model, test_loader, data, cost=None):
+def get_pred(two_stage_model, test_loader, data, cost=None, device='cpu'):
     t1_list, t2_list, x_list, z_list, y_stack, s_stack, gt_s, gt_f1, gt_f2 = [], [], [], [], [], [], [], [], []
     
     with torch.no_grad():
-        if data=='toy':
+        if data=='toy' or data=='toy_multi':
             for i, (x_batch, z_batch, y_batch, E_max_py_xz_batch, max_y_batch, test_py_xz, test_py_x) in enumerate(test_loader):
                 
                 if cost is not None:
@@ -138,9 +143,16 @@ def get_pred(two_stage_model, test_loader, data, cost=None):
                     gt_s_batch = compute_gt_s(E_max_py_xz_batch, max_y_batch, cost)
                     gt_s.append(gt_s_batch)
                 
-                gt_f1_batch, gt_f2_batch = compute_gt_f1_f2(test_py_xz, test_py_x)
+                if data=='toy':
+                    gt_f1_batch, gt_f2_batch = compute_gt_f1_f2(test_py_xz, test_py_x)
+                elif data=='toy_multi':
+                    gt_f1_batch, gt_f2_batch = compute_gt_f1_f2_multiclass(test_py_xz, test_py_x)
                 gt_f1.append(gt_f1_batch)
                 gt_f2.append(gt_f2_batch)
+                
+                #move to device
+                x_batch = x_batch.to(device)
+                z_batch = z_batch.to(device)
                 
                 t1, t2, s, _ = two_stage_model(x_batch, z_batch, debug=False)
                 
@@ -151,16 +163,16 @@ def get_pred(two_stage_model, test_loader, data, cost=None):
                 t2_list.append(t2)
                 y_stack.append(y_batch)
 
-            x_all = torch.cat(x_list, dim=0)
-            s_all = torch.cat(s_stack, dim=0)
-            z_all = torch.cat(z_list, dim=0)
-            t1_all = torch.cat(t1_list, dim=0)
-            t2_all = torch.cat(t2_list, dim=0)
-            y_all = torch.cat(y_stack, dim=0)
-            gt_f1_all = torch.cat(gt_f1, dim=0)
-            gt_f2_all = torch.cat(gt_f2, dim=0)
+            x_all = torch.cat(x_list, dim=0).cpu()
+            s_all = torch.cat(s_stack, dim=0).cpu()
+            z_all = torch.cat(z_list, dim=0).cpu()
+            t1_all = torch.cat(t1_list, dim=0).cpu()
+            t2_all = torch.cat(t2_list, dim=0).cpu()
+            y_all = torch.cat(y_stack, dim=0).cpu()
+            gt_f1_all = torch.cat(gt_f1, dim=0).cpu()
+            gt_f2_all = torch.cat(gt_f2, dim=0).cpu()
             if cost is not None:
-                gt_s_all = torch.cat(gt_s, dim=0)
+                gt_s_all = torch.cat(gt_s, dim=0).to('cpu')
                 return t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all, gt_f1_all, gt_f2_all
             return t1_all, t2_all, y_all, x_all, z_all, s_all, gt_f1_all, gt_f2_all
         elif data=='llm':
@@ -196,13 +208,15 @@ def get_pred(two_stage_model, test_loader, data, cost=None):
             
             return t1_all, t2_all, y_all, x_all, z_all, s_all
         
+        else:
+            raise ValueError("Invalid data type. Choose 'toy', 'toy_multi', or 'llm'.")
         
 
-def compute_accuracies_and_01c(two_stage_model, test_loader, c, data='toy'):
-    if data=='toy':
-        t1_all, t2_all, y_all, x_all, z_all, s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader, data)
+def compute_accuracies_and_01c(two_stage_model, test_loader, data, c, device='cpu'):
+    if data=='toy' or data=='toy_multi':
+        t1_all, t2_all, y_all, x_all, z_all, s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader, data, device=device)
     elif data=='llm':
-        t1_all, t2_all, y_all, x_all, z_all, s_all = get_pred(two_stage_model, test_loader, data)
+        t1_all, t2_all, y_all, x_all, z_all, s_all = get_pred(two_stage_model, test_loader, data, device=device)
 
     
     # berakpoint()

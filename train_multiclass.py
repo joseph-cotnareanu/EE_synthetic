@@ -1,13 +1,13 @@
 import torch 
 from tqdm import tqdm
-from eval_utils import compute_accuracies_and_01c, get_pred, l01c
-from training.loss import loss_hinge_joint, sep_hinge
-
+from eval_utils import get_pred, l01c_multi
+from training.loss import multi_class_loss_hinge_joint, sep_hinge
 
 
 def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs, device='cpu'):
-    datatype = 'toy'
+    datatype = 'toy_multi'
     epoch = training_configs['epoch']
+    batch_size = training_configs['batch_size']
     lr = training_configs['lr']
     loss_type = training_configs['loss_type']
     
@@ -18,6 +18,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     track_epoch_loss = []
     track_t1_acc = []
     track_t2_acc = []
+    track_avg_s = []
     track_l01c = []
     training_log_dict = {}
     cs = []
@@ -36,37 +37,42 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     print('average defferal to f2:', torch.mean(s_all))
     print('average ground truth defferal to f2:', torch.mean(gt_s_all))
     print('-----------')
+    
     for j in range(epoch):
         running_loss = 0
         debug=False
         
+        
         for i, (x_batch, z_batch, y_batch) in tqdm(enumerate(train_loader), total=len(train_loader)):
-            if  i%32 == 0:
-                test_acc_t1, test_acc_t2, test_01c = compute_accuracies_and_01c(two_stage_model, test_loader, datatype, cost, device)
-                track_t1_acc.append(test_acc_t1)
-                track_t2_acc.append(test_acc_t2)
-                track_l01c.append(test_01c)
-           
+    
             optimizer.zero_grad()
             # move data to device
             x_batch = x_batch.to(device)
             z_batch = z_batch.to(device)
             y_batch = y_batch.to(device)
+            
+            
             t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=debug)
             
+            
+            if 'c' in param_dict:
+                cs.append(param_dict['c'].detach().numpy().item())
+                ds.append(param_dict['d'].detach().numpy().item())
             debug=False
             if loss_type == 'separate':
-                loss_f1, loss_f2 = sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s)
+                _, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
                 loss = loss_f1 + loss_f2
-                s = 1- torch.abs(t1)
+                s = 1- torch.nn.Softmax(dim=-1)(t1).max(dim=-1).values.reshape(-1, 1)
             elif loss_type == 'hinge_surrogate':
-                loss, loss_f1, loss_f2 = loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
+                loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
             f1ls.append(loss_f1.detach().cpu().numpy().item()/x_batch.cpu().shape[0])
             f2ls.append(loss_f2.detach().cpu().numpy().item()/x_batch.cpu().shape[0])
             ls.append(loss.detach().cpu().numpy().item()/x_batch.cpu().shape[0])
-            f1 = torch.where(t1 >0, 1, 0)
-            f2 = torch.where(t2 >0, 1, 0)
-            a = l01c(f1, f2, y_batch[:,1], s, cost)['l01c loss']
+            
+            f1 = torch.max(t1, dim=-1).indices
+            f2 = torch.max(t2, dim=-1).indices
+            lout = l01c_multi(f1, f2, y_batch, s, cost)
+            a = lout['l01c loss']
             
             l01cs.append(a.detach().cpu().numpy().item())
             loss.backward()
@@ -74,40 +80,60 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
 
             running_loss += loss.item()
             track_batch_loss.append(loss.item())
+        
+        #test data at end of epoch
+        t1_all, t2_all, y_all, x_all, z_all, s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader, data=datatype, device=device)
+                     
+        f1_all = torch.max(t1_all, dim=-1).indices
+        f2_all = torch.max(t2_all , dim=-1).indices
+        test_01c = l01c_multi(f1_all, f2_all, y_all, s_all, cost)['l01c loss']
+        
+        #convert one hot labels to hinge labels
+        y_hinge = torch.max(y_all, dim=-1).indices
+        test_acc_t1 = torch.mean(torch.where(f1_all == y_hinge, 1, 0).float())
+        test_acc_t2 = torch.mean(torch.where(f2_all == y_hinge, 1, 0).float())
+        
+        track_t1_acc.append(test_acc_t1)
+        track_t2_acc.append(test_acc_t2)
+        track_l01c.append(test_01c)
+        track_avg_s.append(torch.where(s_all > 0.5, 1, 0).float().mean().cpu().item())
+            
+            
             
         
        
         avg_loss = running_loss/ len(train_loader.dataset)
         track_epoch_loss.append(avg_loss)
+        print(" ")
         print(f"Epoch {j+1}/{epoch}, Loss: {avg_loss}")
         scheduler.step()
+        
+        
+        
     
     
     t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader, data=datatype, cost=cost, device=device)
-
-
+    
     print('POST TRAINING -----------')
     print('average defferal to f2:', torch.mean(s_all))
     print('average ground truth defferal to f2:', torch.mean(gt_s_all))
     print('-----------')
     print('\n\n')
-    
 
     
-    optimal_l01c =l01c(gt_f1_all, gt_f2_all, y_all[:,1], gt_s_all, cost)['l01c loss'].detach().item()
-    f1_all = torch.where(t1_all >0, 1, 0)
-    f2_all = torch.where(t2_all >0, 1, 0)
-    lout = l01c(f1_all, f2_all, y_all[:,1], s_all, cost)
+    optimal_l01c =l01c_multi(gt_f1_all, gt_f2_all, y_all, gt_s_all, cost)['l01c loss'].detach().item()
+    f1_all = torch.max(t1_all, dim=-1).indices
+    f2_all = torch.max(t2_all , dim=-1).indices
+    lout = l01c_multi(f1_all, f2_all, y_all, s_all, cost)
     l01cs_test =lout['l01c loss'].detach().item()
+        
     df_testacc = torch.sum(lout['deferral accuracy'])/len(y_all)
-    f1_testpen= lout['f1 selected penalty']
-    f2_testpen = lout['f2 selected penalty']
+    
     df_testrate = torch.sum(lout['rate of deferral'])/len(y_all)
 
     f1_testacc = torch.sum(lout['f1 acc'])/len(y_all)
     f2_testacc = torch.sum(lout['f2 acc'])/len(y_all)
-     
-
+    
     training_log_dict['xzy_x'] = x_all
     training_log_dict['xzy_z'] = z_all
     training_log_dict['xzy_s'] = s_all
@@ -115,12 +141,12 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     training_log_dict['xzy_y'] = y_all
     training_log_dict['xzy_t1'] = t1_all
     training_log_dict['xzy_t2'] = t2_all
-
-
+     
     training_log_dict['param_cs'] = cs
     training_log_dict['param_ds'] = ds
     training_log_dict['track_t1_acc'] = track_t1_acc
     training_log_dict['track_t2_acc'] = track_t2_acc
+    training_log_dict['track_avg_s'] = track_avg_s
     training_log_dict['track_01c'] = track_l01c
     training_log_dict['ls'] = ls
     training_log_dict['f1ls'] = f1ls
