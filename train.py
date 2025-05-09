@@ -57,6 +57,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
                 loss, loss_f1, loss_f2 = loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
             f1ls.append(loss_f1.detach().numpy().item()/x_batch.shape[0])
             f2ls.append(loss_f2.detach().numpy().item()/x_batch.shape[0])
+            # breakpoint()
             ls.append(loss.detach().numpy().item()/x_batch.shape[0])
             f1 = torch.where(t1 >0, 1, 0)
             f2 = torch.where(t2 >0, 1, 0)

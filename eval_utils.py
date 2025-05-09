@@ -10,6 +10,9 @@ def l01c(f1, f2, target, s,c):
     s should be between 0 and 1
     """
     # ensure that they gave the same shape
+    # breakpoint()
+    f1 = f1.max(-1).indices
+    f2 = f2.max(-1).indices
     f1 = f1.reshape(target.shape).to(torch.float)
     f2 = f2.reshape(target.shape).to(torch.float)
     s = s.reshape(target.shape).to(torch.float)

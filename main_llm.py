@@ -151,7 +151,7 @@ if __name__ == '__main__':
     # costs = [1, 0.1, 0.001]
     # costs = [0.001, 0.002, 0.003, 0.004, 0.005
     # costs = list(np.arange(0, 0.1, 0.0005))
-    costs = [0, 0.1, 1, 1000, 10000]
+    costs = [0.0001, 0.01, 0.1]
     test_n = 32*10000
     train_n = 32*10000
     mc_posterior_n = 32*100
@@ -159,15 +159,15 @@ if __name__ == '__main__':
     two_stage_model_name = 'NN' # NN
     training_configs = {'epoch':1000, 'lr':0.001, 'batch_size':32, 'data': 'llm', 'nlayers': 3, 'warmup': 0, 'patience': 20} #data: llm or toy
     
-    exp = 'both'
-    # exp = 'two_stage_experiment'
+    # exp = 'both'
+    exp = 'two_stage_experiment'
     # exp = 'sep_hinge_experiment'
     cost_plot_log_sep = {'name':'sep_hinge_experiment'}
     cost_plot_log_2s = {'name':'two_stage_experiment'}
 
     
-    baseline_dicts = [cost_plot_log_2s, cost_plot_log_sep]
-    # baseline_dicts = [cost_plot_log_2s]
+    # baseline_dicts = [cost_plot_log_2s, cost_plot_log_sep]
+    baseline_dicts = [cost_plot_log_2s]
     # baseline_dicts = [cost_plot_log_se[p]
     
     for base_dict in baseline_dicts:

@@ -252,6 +252,11 @@ def plotting_multi_costs(costs, baseline_dicts):
 
         # vrc = list(vrc.values)
 
+        np.savetxt('s_cost' + str(costs[0])+ ".csv", s0, delimiter=",")
+        np.savetxt('s_cost' + str(costs[1])+ ".csv", s1, delimiter=",")
+        np.savetxt('s_cost' + str(costs[-1])+ ".csv", s2, delimiter=",")
+
+        
 
 
         v = venn3(subsets = list(vrc.values()), set_labels=('cost = ' + str(costs[0]), 'cost = ' + str(costs[1]), 'cost = ' + str(costs[-1])))
