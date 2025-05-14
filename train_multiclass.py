@@ -1,7 +1,7 @@
 import torch 
 from tqdm import tqdm
 from eval_utils import get_pred, l01c_multi
-from training.loss import multi_class_loss_hinge_joint, sep_hinge
+from training.loss import multi_class_loss_hinge_joint, loss_CE_joint_multi
 
 
 def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs, device='cpu'):
@@ -10,6 +10,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     batch_size = training_configs['batch_size']
     lr = training_configs['lr']
     loss_type = training_configs['loss_type']
+    n_classes = training_configs['n_classes']
     
     optimizer = torch.optim.Adam(two_stage_model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1)
@@ -32,6 +33,8 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     df_testrate = []
     
     t1_all, t2_all, y_all, x_all, z_all, s_all, gt_s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader, data=datatype,cost=cost, device=device)
+    
+    s_all_init = s_all.detach().clone()
 
     print('PRE TRAINING -----------')
     print('average defferal to f2:', torch.mean(s_all))
@@ -60,11 +63,13 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
                 ds.append(param_dict['d'].detach().numpy().item())
             debug=False
             if loss_type == 'separate':
-                _, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
+                _, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s, nclasses=n_classes)
                 loss = loss_f1 + loss_f2
                 s = 1- torch.nn.Softmax(dim=-1)(t1).max(dim=-1).values.reshape(-1, 1)
             elif loss_type == 'hinge_surrogate':
-                loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s)
+                loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s, nclasses=n_classes)
+            elif loss_type == 'CE_multi':
+                loss, loss_f1, loss_f2 = loss_CE_joint_multi(x_batch, z_batch, y_batch, cost, t1, t2, s)
             f1ls.append(loss_f1.detach().cpu().numpy().item()/x_batch.cpu().shape[0])
             f2ls.append(loss_f2.detach().cpu().numpy().item()/x_batch.cpu().shape[0])
             ls.append(loss.detach().cpu().numpy().item()/x_batch.cpu().shape[0])
@@ -141,6 +146,8 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     training_log_dict['xzy_y'] = y_all
     training_log_dict['xzy_t1'] = t1_all
     training_log_dict['xzy_t2'] = t2_all
+    
+    training_log_dict['xzy_init_s'] = s_all_init
      
     training_log_dict['param_cs'] = cs
     training_log_dict['param_ds'] = ds

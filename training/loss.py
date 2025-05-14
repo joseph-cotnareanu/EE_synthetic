@@ -1,6 +1,6 @@
 import torch
 from torch.nn.functional import relu
-from torch.nn import BCELoss
+from torch.nn import BCELoss, CrossEntropyLoss
 from sklearn.metrics import hinge_loss
 from eval_utils import one_hot_to_hinge_labels
 from torchmetrics import HingeLoss
@@ -36,6 +36,15 @@ def loss_CE_joint(x_batch, z_batch, y_batch, cost, t1, t2, s):
     # return sum(surrogate_loss)
     if len(surrogate_loss.shape) == 0: return surrogate_loss, ce_f1, ce_f2
     else: return sum(surrogate_loss), torch.sum(ce_f1), torch.sum(ce_f2)
+
+def loss_CE_joint_multi(x_batch, z_batch, y_batch, cost, t1, t2, s):
+    y_index = torch.max(y_batch, dim=-1).indices
+    ce_loss = CrossEntropyLoss(reduction='none')
+    ce_f1 = ce_loss(t1, y_index)
+    ce_f2 = ce_loss(t2, y_index)
+    s_squeeze = s.squeeze() #change dim from (batch,1) to (batch,)
+    surrogate_loss = (1-s_squeeze) * ce_f1 + s_squeeze * (ce_f2 + cost)
+    return torch.sum(surrogate_loss), torch.sum(ce_f1), torch.sum(ce_f2)
 
 
 def loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s):

@@ -40,7 +40,7 @@ class NNBinary(torch.nn.Module):
     
 
 class MultiClassNN(torch.nn.Module):
-    def __init__(self,x_dim:int, z_dim:int, hidden_dim:int, nlayers:int, output_dim:int):
+    def __init__(self,x_dim:int, z_dim:int, hidden_dim:int, nlayers:int, output_dim:int, use_CE=False):
         
         super(MultiClassNN, self).__init__()
 
@@ -49,6 +49,7 @@ class MultiClassNN(torch.nn.Module):
         self.softmax = torch.nn.Softmax()
         self.relu = torch.nn.ReLU()
         self.tanh = torch.nn.Tanh()
+        self.use_CE = use_CE #When using CE loss, remove tanh and set output dimension to K instad of K-1
 
         self.output_dim = output_dim
         self.hidden_dim = hidden_dim
@@ -71,13 +72,18 @@ class MultiClassNN(torch.nn.Module):
 
         self.param_tracking_dict = {}
         self.y1_in = nn.Linear(x_dim, hidden_dim)
-        # self.y1_hid = nn.Linear(hidden_dim, hidden_dim)
-        self.y1_out = nn.Linear(hidden_dim, output_dim-1) # the constraint is that \sum^K_k=1 f_k = 0, so we learn K-1 output, then set the last one to =-\sum^{K-1}_k=1 f_k
         self.y2_in = nn.Linear(z_dim + x_dim, hidden_dim)
-        # self.y2_hid = nn.Linear(hidden_dim, hidden_dim)
-        self.y2_out = nn.Linear(hidden_dim, output_dim-1)
+        
+        if self.use_CE:
+            self.y1_out = nn.Linear(hidden_dim, output_dim)
+            self.y2_out = nn.Linear(hidden_dim, output_dim)
+        else: #hinge loss
+            self.y1_out = nn.Linear(hidden_dim, output_dim-1) 
+            # the constraint is that \sum^K_k=1 f_k = 0, so we learn K-1 output, then set the last one to =-\sum^{K-1}_k=1 f_k
+            self.y2_out = nn.Linear(hidden_dim, output_dim-1)
+        
         self.s_in = nn.Linear(x_dim, hidden_dim)
-        self.s_hid = nn.Linear(hidden_dim, hidden_dim)
+        
         self.s_out = nn.Linear(hidden_dim, 1)
         
         self.s_bn = nn.BatchNorm1d(1)
@@ -89,15 +95,19 @@ class MultiClassNN(torch.nn.Module):
         y2 = self.relu(self.y2_in(torch.concatenate((x,z), dim=-1)))
         s = self.relu(self.s_in(x))
         s = self.s_hid(s)
+        
         y1 = self.y1_hid(y1)
-
         y2 = self.y2_hid(y2)
-        y1 =self.tanh(self.y1_out(y1))
-
-        y1 = torch.cat((y1, -y1.sum(-1)[:, None]), -1)
-        y2 = self.tanh(self.y2_out(y2))
-
-        y2 = torch.cat((y2, -y2.sum(-1)[:, None]), -1)
+        
+        if self.use_CE: #no tanh and no constraint to sum to 0
+            y1 = self.y1_out(y1)
+            y2 = self.y2_out(y2)
+        else:
+            y1 =self.tanh(self.y1_out(y1))
+            y1 = torch.cat((y1, -y1.sum(-1)[:, None]), -1)
+        
+            y2 = self.tanh(self.y2_out(y2))
+            y2 = torch.cat((y2, -y2.sum(-1)[:, None]), -1)
 
         s = self.s_out(s)
         s = self.s_bn(s)
@@ -109,7 +119,7 @@ class MultiClassNN(torch.nn.Module):
 
 
 
-def create_two_stage_model(x_dim:int, z_dim:int, num_classes:int, hidden_dim, two_stage_model_name, n_layers:int=1):
+def create_two_stage_model(x_dim:int, z_dim:int, num_classes:int, hidden_dim, two_stage_model_name, n_layers:int=1, use_CE=False):
     
     if two_stage_model_name == 'NN':
         if num_classes == 2:
@@ -117,7 +127,7 @@ def create_two_stage_model(x_dim:int, z_dim:int, num_classes:int, hidden_dim, tw
                 raise Warning('n_layers is set to {n_layers}, but binary classification will override it to 1')
             two_stage_model = NNBinary(x_dim, z_dim, hidden_dim)
         else:
-            two_stage_model = MultiClassNN(x_dim, z_dim, hidden_dim, n_layers,output_dim=num_classes)
+            two_stage_model = MultiClassNN(x_dim, z_dim, hidden_dim, n_layers,output_dim=num_classes, use_CE=use_CE)
     
     return two_stage_model
 
