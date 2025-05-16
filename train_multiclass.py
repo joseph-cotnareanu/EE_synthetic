@@ -47,7 +47,23 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
         
         
         for i, (x_batch, z_batch, y_batch) in tqdm(enumerate(train_loader), total=len(train_loader)):
-    
+            if i%10 == 0:
+                # test data at end of epoch
+                t1_all, t2_all, y_all, x_all, z_all, s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader, data=datatype, device=device)
+                            
+                f1_all = torch.max(t1_all, dim=-1).indices
+                f2_all = torch.max(t2_all , dim=-1).indices
+                test_01c = l01c_multi(f1_all, f2_all, y_all, s_all, cost)['l01c loss']
+                
+                #convert one hot labels to hinge labels
+                y_hinge = torch.max(y_all, dim=-1).indices
+                test_acc_t1 = torch.mean(torch.where(f1_all == y_hinge, 1, 0).float())
+                test_acc_t2 = torch.mean(torch.where(f2_all == y_hinge, 1, 0).float())
+                
+                track_t1_acc.append(test_acc_t1)
+                track_t2_acc.append(test_acc_t2)
+                track_l01c.append(test_01c)
+                track_avg_s.append(torch.where(s_all > 0.5, 1, 0).float().mean().cpu().item())
             optimizer.zero_grad()
             # move data to device
             x_batch = x_batch.to(device)
@@ -86,22 +102,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
             running_loss += loss.item()
             track_batch_loss.append(loss.item())
         
-        #test data at end of epoch
-        t1_all, t2_all, y_all, x_all, z_all, s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader, data=datatype, device=device)
-                     
-        f1_all = torch.max(t1_all, dim=-1).indices
-        f2_all = torch.max(t2_all , dim=-1).indices
-        test_01c = l01c_multi(f1_all, f2_all, y_all, s_all, cost)['l01c loss']
-        
-        #convert one hot labels to hinge labels
-        y_hinge = torch.max(y_all, dim=-1).indices
-        test_acc_t1 = torch.mean(torch.where(f1_all == y_hinge, 1, 0).float())
-        test_acc_t2 = torch.mean(torch.where(f2_all == y_hinge, 1, 0).float())
-        
-        track_t1_acc.append(test_acc_t1)
-        track_t2_acc.append(test_acc_t2)
-        track_l01c.append(test_01c)
-        track_avg_s.append(torch.where(s_all > 0.5, 1, 0).float().mean().cpu().item())
+       
             
             
             

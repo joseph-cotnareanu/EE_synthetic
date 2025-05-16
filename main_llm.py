@@ -1,5 +1,5 @@
 ﻿
-from storing_plotting import plotting_multi_costs, storing_and_plotting
+
 from torch.utils.data import  DataLoader, TensorDataset
 from train_llm import train_two_stage_experiment as train_llm 
 from matplotlib import pyplot as plt
@@ -10,7 +10,7 @@ from tqdm import tqdm
 import torch
 # seed = 42  # or any number you choose
 
-    
+from storing_plotting import only_storing_plotting_latter
 from create_model import create_two_stage_model, create_llm_model
 from generate_data import load_data
 
@@ -42,7 +42,7 @@ def data_dict_to_dataloader():
         y_test.append(alphabet[alpha_num[d[0]]])
     
 
-    aqua_training_path = '/home/joseph/EE_llm/aqua_train.json'
+    aqua_training_path = 'aqua_train.json'
     a_t = open(aqua_training_path, 'r',  encoding='utf-8-sig')
     aqua_training = []
     for line in a_t.readlines():
@@ -60,16 +60,20 @@ def data_dict_to_dataloader():
     for d in aqua_training[:1000]:
         y_train.append(alphabet[d['gold'][0]])
     # print(y_train)
-    y_val = y_train[800:900]
-    y_test = y_train[900:1000]
+    y_val = y_train[800:802]
+    y_test = y_train[802:1000]
     y_train = y_train[:800]
 
-
+    logits_path = '/Users/florencer/Documents'
     # c = torch.ones(len(y_train))*cost
-    x_train_path = '/home/joseph/home/josephc/scratch/logits/aqua_logits_train_8B/'
-    x_test_path = '//home/joseph/home/josephc/scratch/logits/aqua_logits_8B/'
-    z_train_path = '/home/joseph/home/josephc/scratch/logits/aqua_logits_train_70B/'
-    z_test_path = '/home/joseph/home/josephc/scratch/logits/aqua_logits_70B/'
+    # x_train_path = '/home/joseph/home/josephc/scratch/logits/aqua_logits_train_8B/'
+    # x_test_path = '//home/joseph/home/josephc/scratch/logits/aqua_logits_8B/'
+    # z_train_path = '/home/joseph/home/josephc/scratch/logits/aqua_logits_train_70B/'
+    # z_test_path = '/home/joseph/home/josephc/scratch/logits/aqua_logits_70B/'
+    x_train_path = '/Users/florencer/Documents/logits/aqua_logits_train_8B/'
+    x_test_path = '/Users/florencer/Documents/logits/aqua_logits_8B/'
+    z_train_path = '/Users/florencer/Documents/logits/aqua_logits_train_70B/'
+    z_test_path = '/Users/florencer/Documents/logits/aqua_logits_70B/'
 
     x_train = []
     z_train = []
@@ -81,13 +85,13 @@ def data_dict_to_dataloader():
             print(i)
     x_val = []
     z_val = []
-    for i in range(801, 901):
+    for i in range(801, 803):
         x_val.append(np.load(open(x_train_path + str(i) + '_.npy', 'rb'))[-1, :].squeeze())
         z_val.append(np.load(open(z_train_path + str(i) + '_.npy', 'rb'))[-1, :].squeeze())
 
     x_test = []
     z_test = []
-    for i in range(901,1001):
+    for i in range(803,1001):
         x_test.append(np.load(open(x_test_path + str(i) + '_.npy', 'rb'))[-1, :].squeeze())
         z_test.append(np.load(open(z_test_path + str(i) + '_.npy', 'rb'))[-1, :].squeeze())
 
@@ -135,7 +139,11 @@ def data_dict_to_dataloader():
     return train_loader, val_loader, test_loader, xdim, zdim
 
 if __name__ == '__main__':
-    import math
+    
+    import pickle as pk
+    
+    easy_data_dict = pk.load(open('never_deferred.pkl', 'rb'))
+    hard_data_dict = pk.load(open('always_deferred.pkl', 'rb'))
     # costs = list(np.arange(0.01,0.09, 0.01))
     # costs = list(np.arange(0.001, 0.003, 0.0004))
     # costs = list(np.arange(0,0.01, 0.002))
@@ -150,15 +158,16 @@ if __name__ == '__main__':
     # costs = [1, 0.1, 0.001]
     # costs = [0.001, 0.002, 0.003, 0.004, 0.005
     # costs = list(np.arange(0, 0.1, 0.0005))
-    costs = [0, 0.1, 1, 1000, 10000]
+    #costs = [0.1,0.7, 1]
+    costs = [0.001, 0.01, 0.3]
     test_n = 32*10000
     train_n = 32*10000
     mc_posterior_n = 32*100
     num_trials = 1
     two_stage_model_name = 'NN' # NN
-    training_configs = {'epoch':1000, 'lr':0.001, 'batch_size':32, 'data': 'llm', 'nlayers': 3, 'warmup': 0, 'patience': 20} #data: llm or toy
+    training_configs = {'epoch':300, 'lr':0.001, 'batch_size':400, 'data': 'llm', 'nlayers': 3, 'warmup': 0, 'patience': 300} #data: llm or toy
     
-    exp = 'both'
+    exp = 'two_stage_experiment'
     # exp = 'two_stage_experiment'
     # exp = 'sep_hinge_experiment'
     cost_plot_log_sep = {'name':'sep_hinge_experiment'}
@@ -202,7 +211,7 @@ if __name__ == '__main__':
 
 
 
-                storing_and_plotting(training_log_dict, prefix='llm_2s_exp' + str(cost)+'_')
+                only_storing_plotting_latter(training_log_dict, prefix='llm_2s_exp' + str(cost)+'_')
 
             if exp == 'sep_hinge_experiment' or  exp == 'both': 
                 training_configs['loss_type'] = 'separate'
@@ -218,6 +227,6 @@ if __name__ == '__main__':
                 cost_plot_log_sep['s'].append(training_log_dict['s'])
 
 
-                storing_and_plotting(training_log_dict, prefix='sep_exp' + str(cost)+'_')
+                only_storing_plotting_latter(training_log_dict, prefix='sep_exp' + str(cost)+'_')
            
-        plotting_multi_costs(costs, baseline_dicts)
+       # plotting_multi_costs(costs, baseline_dicts)

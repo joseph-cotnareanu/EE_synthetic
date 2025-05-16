@@ -35,7 +35,7 @@ def data_dict_to_dataloader(data_dict):
 if __name__ == '__main__':
    
     #costs = list(np.arange(0.01,0.09, 0.01))
-    costs = [0.03,0.07]
+    costs = [0.03, 0.05, 0.07]
     test_n = 32*10000
     train_n = 32*10000
     hidden_dim = 64
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     n_classes = 5
     n_layers = 3
     two_stage_model_name = 'NN' # NN
-    training_configs = {'epoch':50, 'lr':0.001, 'batch_size':512, 'n_classes':n_classes}
+    training_configs = {'epoch':3, 'lr':0.001, 'batch_size':512, 'n_classes':n_classes}
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print('Using device:', device)
     
@@ -86,20 +86,8 @@ if __name__ == '__main__':
                 cost_plot_log_2s['f2 acc'].append(training_log_dict['f2 acc'])
 
 
-                only_storing_plotting_latter(training_log_dict, prefix='new2_multi_2s_exp' + str(cost)+'_k' + str(n_classes) + '_')
+                only_storing_plotting_latter(training_log_dict, prefix='risk' + str(cost)+'_k' + str(n_classes) + '_')
 
-            if exp == 'sep_hinge_experiment' or  exp == 'both': 
-                two_stage_model = create_two_stage_model(x_dim=1, z_dim=1, num_classes=n_classes, hidden_dim=hidden_dim, two_stage_model_name=two_stage_model_name, n_layers=n_layers)
-                two_stage_model.to(device)
-                training_configs['loss_type'] = 'separate'
-                two_stage_model, training_log_dict = train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs, device=device)
-
-                cost_plot_log_sep['test_avg_l01c'].append(training_log_dict['test_avg_l01c'])
-                cost_plot_log_sep['df_testacc'].append(training_log_dict['df_testacc'])
-                cost_plot_log_sep['df_testrate'].append(training_log_dict['df_testrate'])
-                cost_plot_log_sep['f1 acc'].append(training_log_dict['f1 acc'])
-                cost_plot_log_sep['f2 acc'].append(training_log_dict['f2 acc'])
-
-                only_storing_plotting_latter(training_log_dict, prefix='multi_sep_exp' + str(cost)+'_')
+            
            
         only_storing_plotting_latter(baseline_dicts, prefix='multi_baseline_' + str(costs) + '_')

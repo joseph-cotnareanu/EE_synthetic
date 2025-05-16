@@ -83,7 +83,7 @@ class MultiClassNN(torch.nn.Module):
             self.y2_out = nn.Linear(hidden_dim, output_dim-1)
         
         self.s_in = nn.Linear(x_dim, hidden_dim)
-        
+        #self.s_hid = nn.Linear(hidden_dim, hidden_dim)
         self.s_out = nn.Linear(hidden_dim, 1)
         
         self.s_bn = nn.BatchNorm1d(1)
@@ -93,20 +93,20 @@ class MultiClassNN(torch.nn.Module):
       
         y1 = self.relu(self.y1_in(x))
         y2 = self.relu(self.y2_in(torch.concatenate((x,z), dim=-1)))
+        y1 = self.y1_hid(y1)
+        y2 = self.y2_hid(y2)
+        y1 =self.y1_out(y1)
+        y2 = self.y2_out(y2)
+        
         s = self.relu(self.s_in(x))
         s = self.s_hid(s)
         
-        y1 = self.y1_hid(y1)
-        y2 = self.y2_hid(y2)
-        
-        if self.use_CE: #no tanh and no constraint to sum to 0
-            y1 = self.y1_out(y1)
-            y2 = self.y2_out(y2)
+        if self.use_CE:
+            y1 = y1
+            y2 = y2
         else:
-            y1 =self.tanh(self.y1_out(y1))
+            
             y1 = torch.cat((y1, -y1.sum(-1)[:, None]), -1)
-        
-            y2 = self.tanh(self.y2_out(y2))
             y2 = torch.cat((y2, -y2.sum(-1)[:, None]), -1)
 
         s = self.s_out(s)

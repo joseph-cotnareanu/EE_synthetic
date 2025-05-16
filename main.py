@@ -35,7 +35,7 @@ def data_dict_to_dataloader(data_dict):
 if __name__ == '__main__':
    
     #costs = list(np.arange(0.01,0.09, 0.01))
-    costs = [0.07, 0.03]
+    costs = [0.07, 0.05, 0.03]
     test_n = 32*10000
     train_n = 32*10000
     hidden_dim = 8

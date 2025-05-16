@@ -1,7 +1,7 @@
 import torch 
 from tqdm import tqdm
 from eval_utils import compute_accuracies_and_01c, get_pred, l01c, l01c_multi
-from storing_plotting import plot_xzy
+
 from training.loss import loss_hinge_joint, sep_hinge, loss_CE_joint, multi_class_loss_hinge_joint, correct_mc_hinge
 import copy
 
@@ -96,7 +96,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
             l01cs.append(a.detach().numpy().item())
             loss.backward()
 
-            torch.nn.utils.clip_grad_norm_(two_stage_model.parameters(), max_norm=1)
+            #torch.nn.utils.clip_grad_norm_(two_stage_model.parameters(), max_norm=1)
             optimizer.step()
 
             running_loss += loss.item()
@@ -121,32 +121,45 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
             track_t1_acc.append(f1_testacc)
             track_t2_acc.append(f2_testacc)
             track_l01c.append(l01cs_test)
+            self1 = lout['f1 selected acc'].item()
+            self2 = lout['f2 selected acc'].item()
             track_t1s_acc.append(lout['f1 selected acc'])
             track_t2s_acc.append(lout['f2 selected acc'])
 
-            if loss_type == 'separate':
-                # loss_f1, loss_f2 = sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s)
-                loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_all, cost, t1_all, t2_all, s_all)
+            # if loss_type == 'separate':
+            #     # loss_f1, loss_f2 = sep_hinge(x_batch, z_batch, y_batch, cost, t1, t2, s)
+            #     loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_all, cost, t1_all, t2_all, s_all)
 
-                loss = loss_f1 + loss_f2
-                # s = 1- torch.abs(t1)
-                s = 1- torch.nn.Softmax(dim=-1)(t1).max(dim=-1).values
-                # breakpoint()
-            elif loss_type == 'hinge_surrogate':
-                if warmup:
-                    if j <= warmup:
-                        loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_all, cost, t1_all, t2_all, s_all)
-                        a = loss.detach().numpy()/x_batch.shape[0]
-                        loss = loss_f1 + loss_f2
-                    else:
-                        loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_all, cost, t1_all, t2_all, s_all)
+            #     loss = loss_f1 + loss_f2
+            #     # s = 1- torch.abs(t1)
+            #     s = 1- torch.nn.Softmax(dim=-1)(t1).max(dim=-1).values
+            #     # breakpoint()
+            # elif loss_type == 'hinge_surrogate':
+            #     if warmup:
+            #         if j <= warmup:
+            #             loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_all, cost, t1_all, t2_all, s_all)
+            #             a = loss.detach().numpy()/x_batch.shape[0]
+            #             loss = loss_f1 + loss_f2
+            #         else:
+            #             loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_all, cost, t1_all, t2_all, s_all)
 
-                else: loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_all, cost, t1_all, t2_all, s_all)
+            #     else: loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_all, cost, t1_all, t2_all, s_all)
         track_df.append(dr/800)
         avg_loss = running_loss/ len(train_loader.dataset)
         track_epoch_loss.append(avg_loss)
         # print(f"Epoch {j+1}/{epoch}, Loss: {avg_loss}")
-        print(f"Epoch {j+1}/{epoch}, Test Loss: {loss/100}")
+        # Compute rolling averages
+        rolling_window = 5
+        avg_f1_testacc = sum(track_t1_acc[-rolling_window:]) / min(len(track_t1_acc), rolling_window)
+        avg_f2_testacc = sum(track_t2_acc[-rolling_window:]) / min(len(track_t2_acc), rolling_window)
+        avg_self1 = sum(track_t1s_acc[-rolling_window:]) / min(len(track_t1s_acc), rolling_window)
+        avg_self2 = sum(track_t2s_acc[-rolling_window:]) / min(len(track_t2s_acc), rolling_window)
+
+        # print(f"Epoch {j+1}/{epoch}, Test Loss: {loss/100}, df: {dr/800:.4f}, "
+        #       f"f1_testacc: {f1_testacc:.4f} (avg: {avg_f1_testacc:.4f}), "
+        #       f"f2_testacc: {f2_testacc:.4f} (avg: {avg_f2_testacc:.4f}), "
+        #       f"self1: {self1:.4f} (avg: {avg_self1:.4f}), "
+        #       f"self2: {self2:.4f} (avg: {avg_self2:.4f})")
         if loss/100 < es_loss- 0.01*loss/100:
             es_loss = loss/100
             patience_count=0
@@ -160,7 +173,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
         scheduler.step()
     # t1, t2, s, param_dict= two_stage_model(x_batch, z_batch, debug=True)
 
-    two_stage_model = best_model
+    #two_stage_model = best_model
     t1_all, t2_all, y_all, x_all, z_all, s_all= get_pred(two_stage_model, test_loader, 'llm', cost)
 
     # two_stage_model(x_all, z_all, debug=True)
@@ -215,7 +228,7 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
     training_log_dict['f2s_acc'] = lout['f2 selected acc']
     training_log_dict['s'] = torch.where(s_all > 0.5, 1, 0)
     # breakpoint()
-    print('average defferal to f2:', df_testrate)
+    print('average defferal to f2:', df_testrate, 'f1', f1_testacc, 'f2', f2_testacc, 'f1s_acc:', lout['f1 selected acc'], 'f2s_acc:', lout['f2 selected acc'])
 
     return two_stage_model, training_log_dict, 
 
