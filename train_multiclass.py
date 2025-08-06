@@ -1,17 +1,15 @@
 import torch 
 from tqdm import tqdm
 from eval_utils import get_pred, l01c_multi
-from training.loss import multi_class_loss_hinge_joint, loss_CE_joint_multi
+from training.loss import loss_L2D, multi_class_loss_hinge_joint, loss_CE_joint_multi, loss_CE_only_multi, multi_class_loss_softplus_joint
 
 
 def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model, training_configs, device='cpu'):
     datatype = 'toy_multi'
     epoch = training_configs['epoch']
-    batch_size = training_configs['batch_size']
     lr = training_configs['lr']
-    loss_type = training_configs['loss_type']
     n_classes = training_configs['n_classes']
-    
+    baseline = training_configs.get('baseline', None)
     optimizer = torch.optim.Adam(two_stage_model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1)
 
@@ -47,9 +45,9 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
         
         
         for i, (x_batch, z_batch, y_batch) in tqdm(enumerate(train_loader), total=len(train_loader)):
-            if i%10 == 0:
+            if i%300 == 0:
                 # test data at end of epoch
-                t1_all, t2_all, y_all, x_all, z_all, s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader, data=datatype, device=device)
+                t1_all, t2_all, y_all, x_all, za_all, s_all, gt_f1_all, gt_f2_all = get_pred(two_stage_model, test_loader, data=datatype, device=device)
                             
                 f1_all = torch.max(t1_all, dim=-1).indices
                 f2_all = torch.max(t2_all , dim=-1).indices
@@ -62,6 +60,12 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
                 
                 track_t1_acc.append(test_acc_t1)
                 track_t2_acc.append(test_acc_t2)
+                if baseline == 'ct':
+                    two_stage_model.search_tau_match_rate(rate=torch.mean(gt_s_all), t1=t1_all)
+                elif baseline == 'ctc':
+                    two_stage_model.set_c_and_acc_for_ct(c=None, acc2=test_acc_t2)
+
+
                 track_l01c.append(test_01c)
                 track_avg_s.append(torch.where(s_all > 0.5, 1, 0).float().mean().cpu().item())
             optimizer.zero_grad()
@@ -78,14 +82,20 @@ def train_two_stage_experiment(train_loader, test_loader, cost, two_stage_model,
                 cs.append(param_dict['c'].detach().numpy().item())
                 ds.append(param_dict['d'].detach().numpy().item())
             debug=False
-            if loss_type == 'separate':
+            if baseline == 'separate':
                 _, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s, nclasses=n_classes)
                 loss = loss_f1 + loss_f2
                 s = 1- torch.nn.Softmax(dim=-1)(t1).max(dim=-1).values.reshape(-1, 1)
-            elif loss_type == 'hinge_surrogate':
+            elif baseline == '2s':
                 loss, loss_f1, loss_f2 = multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s, nclasses=n_classes)
-            elif loss_type == 'CE_multi':
+            elif baseline == 'softplus':
+                loss, loss_f1, loss_f2 = multi_class_loss_softplus_joint(x_batch, z_batch, y_batch, cost, t1, t2, s, nclasses=n_classes)
+            elif baseline == '2sCE':
                 loss, loss_f1, loss_f2 = loss_CE_joint_multi(x_batch, z_batch, y_batch, cost, t1, t2, s)
+            elif baseline in ['ct', 'ctc',  'softr']:
+                loss, loss_f1, loss_f2 = loss_CE_only_multi(x_batch, z_batch, y_batch, cost, t1, t2, s)
+            elif baseline in ['l2d']:
+                loss, loss_f1, loss_f2 = loss_L2D(x_batch, z_batch, y_batch, cost, t1, t2, s, train_half=j*2>epoch)
             f1ls.append(loss_f1.detach().cpu().numpy().item()/x_batch.cpu().shape[0])
             f2ls.append(loss_f2.detach().cpu().numpy().item()/x_batch.cpu().shape[0])
             ls.append(loss.detach().cpu().numpy().item()/x_batch.cpu().shape[0])

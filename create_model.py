@@ -38,9 +38,8 @@ class NNBinary(torch.nn.Module):
 
 
     
-
 class MultiClassNN(torch.nn.Module):
-    def __init__(self,x_dim:int, z_dim:int, hidden_dim:int, nlayers:int, output_dim:int, use_CE=False):
+    def __init__(self,x_dim:int, z_dim:int, hidden_dim:int, nlayers:int, output_dim:int, baseline):
         
         super(MultiClassNN, self).__init__()
 
@@ -49,8 +48,8 @@ class MultiClassNN(torch.nn.Module):
         self.softmax = torch.nn.Softmax()
         self.relu = torch.nn.ReLU()
         self.tanh = torch.nn.Tanh()
-        self.use_CE = use_CE #When using CE loss, remove tanh and set output dimension to K instad of K-1
-
+        self.baseline = baseline
+        self.use_CE = baseline in ['ct', 'ctc', 'softr', 'l2d', '2sCE'] #When using CE loss, remove tanh and set output dimension to K instad of K-1
         self.output_dim = output_dim
         self.hidden_dim = hidden_dim
         self.nlayers = nlayers
@@ -88,6 +87,32 @@ class MultiClassNN(torch.nn.Module):
         
         self.s_bn = nn.BatchNorm1d(1)
  
+    def set_c_and_acc_for_ct(self, c, acc2):
+        if c is not None:
+            self.c = c
+        if acc2 is not None:
+            self.acc2 = acc2
+        self.tau = self.acc2 - self.c
+    def search_tau_match_rate(self, rate, t1):
+        #self.tau = 0.5
+        prob1 = self.softmax(t1)
+        eta = torch.max(prob1, axis=1)[0]
+        
+        sorted_probs, _ = torch.sort(eta)
+        n = len(eta)
+
+        # Number of examples that must be deferred
+        num_defer = int(torch.ceil(torch.tensor(rate * n)).item())
+
+        if num_defer == 0:
+            return torch.max(eta) + 1e-6  # So that no value is > tau
+        elif num_defer >= n:
+            return torch.min(eta) - 1e-6  # So that all values are > tau
+
+        # tau should be just below the (n - num_defer)-th highest element
+        tau_index = n - num_defer
+        self.tau = sorted_probs[tau_index]
+        
         
     def forward(self, x,z, debug):
       
@@ -98,8 +123,6 @@ class MultiClassNN(torch.nn.Module):
         y1 =self.y1_out(y1)
         y2 = self.y2_out(y2)
         
-        s = self.relu(self.s_in(x))
-        s = self.s_hid(s)
         
         if self.use_CE:
             y1 = y1
@@ -109,25 +132,95 @@ class MultiClassNN(torch.nn.Module):
             y1 = torch.cat((y1, -y1.sum(-1)[:, None]), -1)
             y2 = torch.cat((y2, -y2.sum(-1)[:, None]), -1)
 
-        s = self.s_out(s)
-        s = self.s_bn(s)
-        s = self.sigmoid(s)
+        if self.baseline in ['ct', 'ctc']: # we use confidence based thresholding
+            prob1 = self.softmax(y1)
+            s = (torch.max(prob1, axis=1)[0] < self.tau ).to(torch.float)
+        elif self.baseline == 'softr': # soft deferal
+            prob1 = self.softmax(y1)
+            eta = torch.max(prob1, axis=1)[0]
+            p = 1 - eta
+
+            # Step 3: Sample from Bernoulli
+            s = torch.bernoulli(p)
+        else:
+            s = self.relu(self.s_in(x))
+            s = self.s_hid(s)
+            s = self.s_out(s)
+            s = self.s_bn(s)
+            s = self.sigmoid(s)
        
         param_tracking_dict  = {'s':s}
         
         return y1, y2, s, param_tracking_dict
 
 
+class L2DMultiClassNN(torch.nn.Module):
+    def __init__(self,x_dim:int, z_dim:int, hidden_dim:int, nlayers:int, output_dim:int):
+        
+        super(L2DMultiClassNN, self).__init__()
 
-def create_two_stage_model(x_dim:int, z_dim:int, num_classes:int, hidden_dim, two_stage_model_name, n_layers:int=1, use_CE=False):
+
+        self.sigmoid = torch.nn.Sigmoid()
+        self.softmax = torch.nn.Softmax()
+        self.relu = torch.nn.ReLU()
+        self.tanh = torch.nn.Tanh()
+        self.output_dim = output_dim
+        self.hidden_dim = hidden_dim
+        self.nlayers = nlayers
+        self.y1_hid = torch.nn.Sequential()
+        self.y2_hid = torch.nn.Sequential()
+        self.s_hid = torch.nn.Sequential()
+        for i in range(nlayers):
+            self.y1_hid.append(nn.Linear(hidden_dim, hidden_dim))
+            self.y1_hid.append(nn.BatchNorm1d(hidden_dim))
+            self.y1_hid.append(self.relu)
+
+            self.y2_hid.append(nn.Linear(hidden_dim, hidden_dim))
+            self.y2_hid.append(nn.BatchNorm1d(hidden_dim))
+            self.y2_hid.append(self.relu)
+
+
+        self.param_tracking_dict = {}
+        self.y1_in = nn.Linear(x_dim, hidden_dim)
+        self.y2_in = nn.Linear(z_dim + x_dim, hidden_dim)
+        
+        
+        self.y1_out = nn.Linear(hidden_dim, output_dim+1)
+        self.y2_out = nn.Linear(hidden_dim, output_dim)
+       
+        
+    def forward(self, x,z, debug):
+      
+        y1 = self.relu(self.y1_in(x))
+        y2 = self.relu(self.y2_in(torch.concatenate((x,z), dim=-1)))
+        y1 = self.y1_hid(y1)
+        y2 = self.y2_hid(y2)
+        y1 =self.y1_out(y1)
+        y2 = self.y2_out(y2)
+        
+        
+        
+        y1 = y1
+        y2 = y2
+        s = torch.argmax(self.softmax(y1),dim=1) == self.output_dim  # the last dim is for s
+        s = s.to(torch.float)
+        param_tracking_dict  = {'s':s}
+        
+        return y1, y2, s, param_tracking_dict
+
+
+
+def create_two_stage_model(x_dim:int, z_dim:int, num_classes:int, hidden_dim, two_stage_model_name, n_layers, baseline):
     
     if two_stage_model_name == 'NN':
-        if num_classes == 2:
+        if baseline == 'l2d':
+            two_stage_model = L2DMultiClassNN(x_dim, z_dim, hidden_dim, n_layers,output_dim=num_classes)
+        elif num_classes == 2:
             if n_layers != 1:
                 raise Warning('n_layers is set to {n_layers}, but binary classification will override it to 1')
             two_stage_model = NNBinary(x_dim, z_dim, hidden_dim)
         else:
-            two_stage_model = MultiClassNN(x_dim, z_dim, hidden_dim, n_layers,output_dim=num_classes, use_CE=use_CE)
+            two_stage_model = MultiClassNN(x_dim, z_dim, hidden_dim, n_layers,output_dim=num_classes, baseline=baseline)
     
     return two_stage_model
 

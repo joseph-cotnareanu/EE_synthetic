@@ -4,6 +4,7 @@ from torch.nn import BCELoss, CrossEntropyLoss
 from sklearn.metrics import hinge_loss
 from eval_utils import one_hot_to_hinge_labels
 from torchmetrics import HingeLoss
+import torch.nn.functional as F
 
 hinge=HingeLoss(task='binary')
 multi_class_hinge_loss = torch.nn.MultiMarginLoss(p=1, margin=1, weight=None, size_average=None, reduce=None)
@@ -46,7 +47,38 @@ def loss_CE_joint_multi(x_batch, z_batch, y_batch, cost, t1, t2, s):
     surrogate_loss = (1-s_squeeze) * ce_f1 + s_squeeze * (ce_f2 + cost)
     return torch.sum(surrogate_loss), torch.sum(ce_f1), torch.sum(ce_f2)
 
+# only trains with CE
+def loss_CE_only_multi(x_batch, z_batch, y_batch, cost, t1, t2, s):
+    y_index = torch.max(y_batch, dim=-1).indices
+    ce_loss = CrossEntropyLoss(reduction='none')
+    ce_f1 = ce_loss(t1, y_index)
+    ce_f2 = ce_loss(t2, y_index)
+    surrogate_loss= ce_f1 + ce_f2 
+    return torch.sum(surrogate_loss), torch.sum(ce_f1), torch.sum(ce_f2)
 
+def loss_L2D(x_batch, z_batch, y_batch, cost, t1, t2, s, train_half):
+    y_index = torch.max(y_batch, dim=-1).indices
+    ce_loss = CrossEntropyLoss(reduction='none')
+    if train_half: # we are in the second half of training, we apply the L2D loss
+        expert_preds = torch.argmax(t2, dim=1)
+        outputs = torch.softmax(t1, dim=1)
+        expert_correct = (expert_preds == y_index).float()
+        m2 = self.alpha * expert_correct + (1 - expert_correct)
+        expert_correct = torch.tensor(expert_correct).to(self.device)
+        m2 = torch.tensor(m2).to(self.device)
+        batch_size = outputs.size()[0]  # batch_size
+        loss = -expert_correct * torch.log2(
+            outputs[range(batch_size), -1] + eps_cst
+        ) - m2 * torch.log2(
+            outputs[range(batch_size), data_y] + eps_cst
+        )  # pick the values corresponding to the labels
+        return torch.sum(loss) / batch_size
+
+    else: # we are in the first half of training, we only train f2
+        ce_f2 = ce_loss(t2, y_index)
+        ce_f1 = ce_loss(t1, y_index)
+        return torch.sum(ce_f2), torch.sum(ce_f1), torch.sum(ce_f2)
+    
 def loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s):
     # y_batch to 1 -1 labels
     y_hinge = one_hot_to_hinge_labels(y_batch)
@@ -96,3 +128,45 @@ def multi_class_loss_hinge_joint(x_batch, z_batch, y_batch, cost, t1, t2, s, ncl
     # return sum(surrogate_loss)
     if len(surrogate_loss.shape) == 0: return surrogate_loss, hinge_f1, hinge_f2
     else: return sum(surrogate_loss), torch.sum(hinge_f1), torch.sum(hinge_f2)
+    
+    
+def correct_mc_softplus(t, y):
+    """
+    Softplus surrogate version of correct_mc_hinge.
+    
+    t: Tensor (batch_size, K) - logits or scores
+    y: Tensor (batch_size, K) - one-hot with 1 at true class, 0 elsewhere
+    
+    Returns: Tensor (batch_size, 1) of per-example loss.
+    """
+    K = t.shape[1]
+    offset = 1.0 / (K - 1)
+    t = t + offset  # add constant offset
+    
+    # Apply softplus instead of ReLU
+    t = F.softplus(t)
+    
+    # Mask out true class
+    mask = y * -1 + 1  # true class -> 0, others -> 1
+    t = t * mask
+    
+    # Sum over classes and keep dim
+    return t.sum(dim=-1, keepdim=True)
+
+
+def multi_class_loss_softplus_joint(x_batch, z_batch, y_batch, cost, keep_logits, retrain_logits, retrain_probs, nclasses=5):
+    """
+    Softplus-based smooth hinge two-stage surrogate loss.
+    
+    Returns total loss and sums of keep and retrain losses for monitoring.
+    """
+    hinge_keep = correct_mc_softplus(keep_logits, y_batch)  
+    hinge_retrain = correct_mc_softplus(retrain_logits, y_batch)
+    
+    surrogate_loss = (1 - retrain_probs) * hinge_keep + retrain_probs * (hinge_retrain + cost * (nclasses / (nclasses - 1)))
+    
+    total_loss = surrogate_loss.sum()
+    sum_keep = hinge_keep.sum()
+    sum_retrain = hinge_retrain.sum()
+    
+    return total_loss, sum_keep, sum_retrain
